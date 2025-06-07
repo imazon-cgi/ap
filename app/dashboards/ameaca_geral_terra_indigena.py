@@ -1,4 +1,4 @@
-# app/dashboards/ap_ameaca_terra_indigena.py
+ # app/dashboards/ap_ameaca_terra_indigena.py
 """
 Dashboard – Ameaça Geral em Terras Indígenas
 Rota Flask: /ap/ameaca_terra_indigena/
@@ -96,7 +96,6 @@ state_options = [{'label': state, 'value': state} for state in list_states]
 # Definição das opções de filtro
 modalidade_options = [
     {'label': 'Terra Indigena', 'value': 'Terra Indigena'},
-
 ]
 uso_options = [
     {'label': 'Regularizada', 'value': 'Regularizada'},
@@ -126,62 +125,72 @@ def register_ameaca_terra_indigena(flask_server):
     # ───────────── layout ────────────────────────────────
     app.layout = dbc.Container([
         html.Meta(name="viewport", content="width=device-width, initial-scale=1"),
-    dbc.Row([
-        dbc.Col(dbc.Card([
-            dbc.CardBody([
-                html.H1("Análise de Ameaça de Desmatamento - Amazônia Legal", className="text-center mb-4"),
-                dbc.Row([
-                    dbc.Col(html.Label('Modalidade:', className="fw-bold"), width='auto', className="align-self-center"),
-                    dbc.Col(dcc.Dropdown(id='modalidade-dropdown', options=modalidade_options, value='Terra Indigena', clearable=False), width=3),
-                    dbc.Col(html.Label('Fase:', className="fw-bold"), width='auto', className="align-self-center"),
-                    dbc.Col(dcc.Dropdown(id='uso-dropdown', options=uso_options, multi=True, placeholder="Selecione a(s) Fase(s)"), width=3),
-                    dbc.Col(html.Label('UF:', className="fw-bold"), width='auto', className="align-self-center"),
-                    dbc.Col(dcc.Dropdown(id='state-dropdown', options=state_options, multi=True, placeholder="Selecione o(s) Estado(s)"), width=3),
-                    dbc.Col(
-                        dbc.Button(
-                            [html.I(className="fa fa-filter mr-1"), "Remover Filtros"],
-                            id="reset-button", color="primary", className="btn-sm custom-button"
-                        ), width="auto", className="d-flex justify-content-end"
-                    ),
-                   dbc.Col(
-                        dbc.Button(
-                            [html.I(className="fa fa-download mr-1"), "Baixar CSV"],
-                            id="open-modal-button", color="secondary", className="btn-sm custom-button"
-                        ), width="auto", className="d-flex justify-content-end"
-                    )
-                ], justify="end", className='mb-3 align-items-center')
-            ])
-        ], className="mb-4 title-card"), width=12)
-    ]),
-    dcc.Download(id="download-dataframe-csv"),
         dbc.Row([
-            dbc.Col(dbc.Card([
-                dcc.Graph(id='bar-graph')
-            ], className="graph-block"), width=12, lg=6),
-            dbc.Col(dbc.Card([
-                dcc.Graph(id='map-graph')
-            ], className="graph-block"), width=12, lg=6)
+            dbc.Col(
+                dbc.Card([
+                    dbc.CardBody([
+                        #html.H1("Análise de Ameaça de Desmatamento - Amazônia Legal", className="text-center mb-4"),
+                        dbc.Row([
+                            dbc.Col(html.Label('Modalidade:', className="fw-bold"), width='auto', className="align-self-center"),
+                            dbc.Col(dcc.Dropdown(id='modalidade-dropdown', options=modalidade_options, value='Terra Indigena', clearable=False), width=3),
+                            dbc.Col(html.Label('Fase:', className="fw-bold"), width='auto', className="align-self-center"),
+                            dbc.Col(dcc.Dropdown(id='uso-dropdown', options=uso_options, multi=True, placeholder="Selecione a(s) Fase(s)"), width=3),
+                            dbc.Col(html.Label('UF:', className="fw-bold"), width='auto', className="align-self-center"),
+                            dbc.Col(dcc.Dropdown(id='state-dropdown', options=state_options, multi=True, placeholder="Selecione o(s) Estado(s)"), width=3),
+                            dbc.Col(
+                                dbc.Button([
+                                    html.I(className="fa fa-filter mr-1"), "Remover Filtros"
+                                ], id="reset-button", color="primary", className="btn-sm custom-button"), width="auto", className="d-flex justify-content-end"
+                            ),
+                            dbc.Col(
+                                dbc.Button([
+                                    html.I(className="fa fa-download mr-1"), "Baixar CSV"
+                                ], id="open-modal-button", color="secondary", className="btn-sm custom-button"), width="auto", className="d-flex justify-content-end"
+                            )
+                        ], justify="end", className='mb-3 align-items-center')
+                    ])
+                ], className="mb-4 title-card", style={"border": "none"}), width=12
+            )
+        ]),
+        dcc.Download(id="download-dataframe-csv"),
+        dbc.Row([
+            dbc.Col(
+                dbc.Card([
+                    dcc.Graph(id='bar-graph')
+                ], className="graph-block", style={"border": "none"}), width=12, lg=6
+            ),
+            dbc.Col(
+                dbc.Card([
+                    dcc.Graph(id='map-graph')
+                ], className="graph-block", style={"border": "none"}), width=12, lg=6
+            )
         ], className='mb-4'),
         dcc.Store(id='selected-states', data=[]),
         dbc.Row([
-            dbc.Col(dbc.Card([
-                dcc.Graph(id='pie-uso-graph')
-            ], className="graph-block"), width=12, lg=6),
-            dbc.Col(dbc.Card([
-                dcc.Graph(id='pie-unid-graph')
-            ], className="graph-block"), width=12, lg=6)
+            dbc.Col(
+                dbc.Card([
+                    dcc.Graph(id='pie-uso-graph')
+                ], className="graph-block", style={"border": "none"}), width=12, lg=6
+            ),
+            dbc.Col(
+                dbc.Card([
+                    dcc.Graph(id='pie-unid-graph')
+                ], className="graph-block", style={"border": "none"}), width=12, lg=6
+            )
         ], className='mb-4'),
-           # Tabela com as 10 áreas protegidas mais afetadas pelo desmatamento
+        # Tabela com as 10 áreas protegidas mais afetadas pelo desmatamento
         dbc.Row([
-            dbc.Col(dbc.Card([
-                dbc.CardHeader("Top 10 Áreas Protegidas Mais Afetadas"),
-                dbc.CardBody([
-                    dbc.Table(id='top-10-table', bordered=True, hover=True, responsive=True, striped=True)
-                ])
-            ], className="mb-4"))
+            dbc.Col(
+                dbc.Card([
+                    dbc.CardHeader("Top 10 Áreas Protegidas Mais Afetadas"),
+                    dbc.CardBody([
+                        dbc.Table(id='top-10-table', bordered=False, hover=True, responsive=True, striped=True, style={"border": "none"})
+                    ])
+                ], className="mb-4", style={"border": "none"}), width=12
+            )
         ]),
 
-      dbc.Modal([
+        dbc.Modal([
             dbc.ModalHeader(dbc.ModalTitle("Escolha Unidades de Conservação da Amazônia Legal")),
             dbc.ModalBody([
                 dcc.Dropdown(
@@ -230,8 +239,7 @@ def register_ameaca_terra_indigena(flask_server):
         ], id="modal", is_open=False)
     ], fluid=True)
 
-
-
+    # (callbacks intactos abaixo...)
     # Callback para atualização dos gráficos
     @app.callback(
         [Output('bar-graph', 'figure'), Output('map-graph', 'figure'), 
@@ -241,6 +249,8 @@ def register_ameaca_terra_indigena(flask_server):
          Input('reset-button', 'n_clicks'), Input('bar-graph', 'clickData'), Input('map-graph', 'clickData')],
         [State('selected-states', 'data')]
     )
+
+
     def update_graphs(modalidade, uso, states, reset_clicks, bar_click_data, map_click_data, selected_states):
            # Resetar filtros se o botão for clicado
         if reset_clicks:
@@ -304,7 +314,7 @@ def register_ameaca_terra_indigena(flask_server):
                 html.Td(f"{row['ESTRADAS N']:.2f} km")
             ]))
 
-        table = dbc.Table(table_header + [html.Tbody(table_body)], bordered=True, hover=True, responsive=True, striped=True)
+        table = dbc.Table(table_header + [html.Tbody(table_body)], bordered=False, hover=True, responsive=True, striped=True)
 
 
         # Gráfico de barras atualizado

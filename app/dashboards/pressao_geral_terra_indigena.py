@@ -121,8 +121,7 @@ def register_pressao_terras_indigenas(flask_server):
                     dbc.Card(
                         dbc.CardBody(
                             [
-                                html.H1("Análise de Pressão de Desmatamento - Amazônia Legal",
-                                        className="text-center mb-4"),
+                                
                                 dbc.Row(
                                     [
                                         # modalidade
@@ -161,7 +160,8 @@ def register_pressao_terras_indigenas(flask_server):
                                 ),
                             ]
                         ),
-                        className="mb-4",
+                       className="mb-4",
+    style={"border": "none"}
                     )
                 )
             ),
@@ -173,7 +173,8 @@ def register_pressao_terras_indigenas(flask_server):
                     dbc.Col(dbc.Card(dcc.Graph(id="bar"),  className="graph-block"), width=12, lg=6),
                     dbc.Col(dbc.Card(dcc.Graph(id="map"),  className="graph-block"), width=12, lg=6),
                 ],
-                className="mb-4",
+               className="mb-4",
+    style={"border": "none"}
             ),
             dcc.Store(id="selecionados", data=[]),
             dbc.Row(
@@ -181,7 +182,8 @@ def register_pressao_terras_indigenas(flask_server):
                     dbc.Col(dbc.Card(dcc.Graph(id="pie-fase"),  className="graph-block"), width=12, lg=6),
                     dbc.Col(dbc.Card(dcc.Graph(id="pie-ti"),    className="graph-block"), width=12, lg=6),
                 ],
-                className="mb-4",
+               className="mb-4",
+    style={"border": "none"}
             ),
 
             # ---------- tabela ----------
@@ -190,10 +192,11 @@ def register_pressao_terras_indigenas(flask_server):
                     dbc.Card(
                         [
                             dbc.CardHeader("Top 10 Áreas Protegidas Mais Afetadas"),
-                            dbc.CardBody(dbc.Table(id="top10", bordered=True, hover=True,
+                            dbc.CardBody(dbc.Table(id="top10", bordered=False, hover=True,
                                                    responsive=True, striped=True)),
                         ],
-                        className="mb-4",
+                       className="mb-4",
+    style={"border": "none"}
                     )
                 )
             ),
@@ -286,8 +289,14 @@ def register_pressao_terras_indigenas(flask_server):
                 html.Td(f"{r['ESTRADAS N']:.2f} km"),
             ]) for _, r in top10.iterrows()
         ])
-        tabela = dbc.Table([thead, tbody], bordered=True, hover=True,
-                           responsive=True, striped=True)
+        tabela = dbc.Table(
+    [thead, tbody],
+    bordered=False,
+    hover=True,
+    responsive=True,
+    striped=True,
+    style={"border": "none"}
+)
 
         # barras
         bar = go.Figure(
