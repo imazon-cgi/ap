@@ -24,7 +24,6 @@ from dash import (
     Output,
     State,
     callback_context,
-    no_update,
 )
 
 
@@ -44,7 +43,7 @@ def register_ameaca_area_protecao(server) -> dash.Dash:
         url_base_pathname="/ap/ameaca_geral_area_de_protecao/",
         external_stylesheets=external_css,
         suppress_callback_exceptions=True,
-        #title="Ameaça Geral – Área de Proteção",
+        title="Ameaça Geral – Área de Proteção",
     )
 
     # ╭─ utilidades de carga ────────────────────────────────────────────────╮
@@ -87,7 +86,7 @@ def register_ameaca_area_protecao(server) -> dash.Dash:
         {"label": "Protecao Integral", "value": "Protecao Integral"},
     ]
 
-    # ╭─ layout (igual original) ────────────────────────────────────────────╮
+    # ╭─ layout (copiado do script original) ────────────────────────────────╮
     app.layout = dbc.Container(
         [
             html.Meta(name="viewport", content="width=device-width, initial-scale=1"),
@@ -99,8 +98,8 @@ def register_ameaca_area_protecao(server) -> dash.Dash:
                                 dbc.CardBody(
                                     [
                                         #html.H1(
-                                            #"Análise de Ameaça de Desmatamento - Amazônia Legal",
-                                            #className="text-center mb-4",
+                                        #    "Análise de Ameaça de Desmatamento - Amazônia Legal",
+                                        #    className="text-center mb-4",
                                         #),
                                         dbc.Row(
                                             [
@@ -175,11 +174,11 @@ def register_ameaca_area_protecao(server) -> dash.Dash:
                                             ],
                                             justify="end",
                                             className="mb-3 align-items-center",
-                                        ),
+                                        )
                                     ]
                                 )
                             ],
-                            className="mb-4 title-card",
+                            className="mb-4 title-card", style={"border": "none"}
                         ),
                         width=12,
                     )
@@ -200,6 +199,7 @@ def register_ameaca_area_protecao(server) -> dash.Dash:
                     ),
                 ],
                 className="mb-4",
+    style={"border": "none"},
             ),
             dcc.Store(id="selected-states", data=[]),
             dbc.Row(
@@ -216,6 +216,7 @@ def register_ameaca_area_protecao(server) -> dash.Dash:
                     ),
                 ],
                 className="mb-4",
+    style={"border": "none"},
             ),
             dbc.Row(
                 [
@@ -228,6 +229,7 @@ def register_ameaca_area_protecao(server) -> dash.Dash:
                                 ),
                             ],
                             className="mb-4",
+    style={"border": "none"},
                         )
                     )
                 ]
@@ -298,26 +300,7 @@ def register_ameaca_area_protecao(server) -> dash.Dash:
         fluid=True,
     )
 
-    # ╭──────────────────────────────────────────────────────────────────────╮
-    # │ CALLBACK PARA RESETAR FILTROS                                        │
-    # ╰──────────────────────────────────────────────────────────────────────╯
-    @app.callback(
-        [
-            Output("modalidade-dropdown", "value"),
-            Output("uso-dropdown", "value"),
-            Output("state-dropdown", "value"),
-            Output("selected-states", "data"),
-        ],
-        Input("reset-button", "n_clicks"),
-        prevent_initial_call=True,
-    )
-    def reset_filters(n_clicks):
-        if n_clicks:
-            # Limpa todos os filtros e seleção de estados
-            return None, None, None, []
-        return no_update, no_update, no_update, no_update
-
-    # ╭─ callbacks principais ───────────────────────────────────────────────╮
+    # ╭─ callbacks (lógica igual ao original) ───────────────────────────────╮
     @app.callback(
         [
             Output("bar-graph", "figure"),
@@ -331,15 +314,20 @@ def register_ameaca_area_protecao(server) -> dash.Dash:
             Input("modalidade-dropdown", "value"),
             Input("uso-dropdown", "value"),
             Input("state-dropdown", "value"),
+            Input("reset-button", "n_clicks"),
             Input("bar-graph", "clickData"),
             Input("map-graph", "clickData"),
         ],
         [State("selected-states", "data")],
     )
     def update_graphs(
-        modalidade, uso, states, bar_click_data, map_click_data, selected_states
+        modalidade, uso, states, reset_clicks, bar_click_data, map_click_data, selected_states
     ):
-        # Clique em barra
+        # ── reset de filtros
+        if reset_clicks:
+            selected_states = []
+
+        # clique em barra
         if bar_click_data:
             clicked_name = bar_click_data["points"][0]["y"]
             if clicked_name in selected_states:
@@ -347,7 +335,7 @@ def register_ameaca_area_protecao(server) -> dash.Dash:
             else:
                 selected_states.append(clicked_name)
 
-        # Clique no mapa
+        # clique no mapa
         if map_click_data:
             clicked_name = map_click_data["points"][0]["location"]
             if clicked_name in selected_states:
@@ -355,7 +343,7 @@ def register_ameaca_area_protecao(server) -> dash.Dash:
             else:
                 selected_states.append(clicked_name)
 
-        # Filtragem
+        # ---------------- filtragem ----------------------------------------
         filtered_df = df.copy()
 
         if modalidade:
@@ -372,7 +360,7 @@ def register_ameaca_area_protecao(server) -> dash.Dash:
         if selected_states:
             filtered_df = filtered_df[filtered_df["NOME"].isin(selected_states)]
 
-        # Top-10 e tabela
+        # ---------------- top-10 e tabela ----------------------------------
         top_10 = filtered_df.nlargest(10, "DESMATAM_1")
 
         table_header = html.Thead(
@@ -406,7 +394,7 @@ def register_ameaca_area_protecao(server) -> dash.Dash:
             striped=True,
         )
 
-        # Gráfico de barras
+        # ---------------- gráfico de barras --------------------------------
         bar_colors = ["green" if n in selected_states else "DarkSeaGreen" for n in top_10["NOME"]]
         bar_fig = go.Figure(
             go.Bar(
@@ -432,14 +420,14 @@ def register_ameaca_area_protecao(server) -> dash.Dash:
             ),
         )
 
-        # Mapa
-        map_fig = px.choropleth_map(
+        # ---------------- mapa ---------------------------------------------
+        map_fig = px.choropleth_mapbox(
             top_10,
             geojson=roi,
-            #color="DESMATAM_1",
+            color="DESMATAM_1",
             locations="NOME",
             featureidkey="properties.NOME",
-            map_style="carto-positron",
+            mapbox_style="carto-positron",
             center=dict(lat=-14, lon=-55),
             color_continuous_scale="YlOrRd",
             zoom=4,
@@ -456,7 +444,7 @@ def register_ameaca_area_protecao(server) -> dash.Dash:
             mapbox=dict(zoom=3, center=dict(lat=-14, lon=-55), style="open-street-map"),
         )
 
-        # Pizzas
+        # ---------------- pizzas -------------------------------------------
         pie_colors = px.colors.sequential.YlOrRd
         pie_uso_fig = px.pie(
             top_10,
@@ -517,4 +505,3 @@ def register_ameaca_area_protecao(server) -> dash.Dash:
 
     # ----------------------------------------------------------------------
     return app
-
