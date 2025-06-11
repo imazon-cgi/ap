@@ -1,0 +1,21 @@
+/* assets/pressao_ucs.css */
+
+/* rótulos compactos nos filtros */
+/* assets/pressao_ucs.css  e/ou  assets/pressao_ti.css */
+.filter-label{
+  font-weight:700;      /* negrito */
+  white-space:nowrap;
+}
+
+
+/* garante que os dropdowns ocupem toda a largura da coluna */
+.filter-dropdown{
+  width:100%;
+}
+
+/* diminui o padding vertical do card de filtros em telas pequenas */
+@media (max-width: 576px){
+  .filter-card-body{
+    padding:1rem;
+  }
+}

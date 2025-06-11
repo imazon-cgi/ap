@@ -1,0 +1,11 @@
+/* assets/ameaca_ti.css */
+.filter-label{
+  font-weight:700;          /* negrito */
+  white-space:nowrap;       /* evita quebra de linha */
+}
+.filter-dropdown{
+  width:100%;               /* ocupa toda a coluna */
+}
+@media (max-width:576px){
+  .filter-card-body{padding:1rem;}
+}

@@ -1,0 +1,10 @@
+.filter-label{
+  font-weight:700;      /* negrito */
+  white-space:nowrap;   /* largura apenas do texto */
+}
+.filter-dropdown{
+  width:100%;           /* ocupa toda a coluna */
+}
+@media (max-width:576px){
+  .filter-card-body{padding:1rem;}   /* diminui padding em smartphones */
+}

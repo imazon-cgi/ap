@@ -24,12 +24,15 @@ from dash import html, dcc, Input, Output, State
 # ───────────────────── helpers de download ──────────────────────
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
+
 def _tmp_from_url(url: str, suffix: str) -> str:
     r = requests.get(url, headers=HEADERS, timeout=30)
     r.raise_for_status()
     f = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-    f.write(r.content); f.close()
+    f.write(r.content)
+    f.close()
     return f.name
+
 
 def load_geojson(url: str):
     try:
@@ -37,9 +40,12 @@ def load_geojson(url: str):
     except Exception:
         try:
             p = _tmp_from_url(url, ".geojson")
-            gdf = gpd.read_file(p); os.unlink(p); return gdf
+            gdf = gpd.read_file(p)
+            os.unlink(p)
+            return gdf
         except Exception:
             return None
+
 
 def load_parquet(url: str) -> pd.DataFrame | None:
     try:
@@ -50,6 +56,7 @@ def load_parquet(url: str) -> pd.DataFrame | None:
             return pd.read_parquet(buf)
         except Exception:
             return None
+
 
 # ───────────────────── URLs fontes ──────────────────────────────
 GEOJSON_URLS = [
@@ -66,36 +73,36 @@ PARQUET_URLS = [
 ]
 
 # ───────────────────── carrega datasets ─────────────────────────
-
 def load_df(url):
     return pd.read_parquet(url)
 
-# Carregamento dos dados
-roi = load_geojson("https://raw.githubusercontent.com/imazon-cgi/ap/main/dataset/geojson/PRESSAO_GERAL_UCs.geojson")
-roi['NOME'] = roi['NOME'].str.upper().apply(lambda x: unidecode.unidecode(x) if isinstance(x, str) else x)
-roi = roi.sort_values(by='RANK')
 
-df = load_df('https://github.com/imazon-cgi/ap/raw/refs/heads/main/dataset/csv/PRESSAO_GERAL_UCs.parquet')
-df['NOME'] = df['NOME'].str.upper().apply(lambda x: unidecode.unidecode(x) if isinstance(x, str) else x)
-df = df.sort_values(by='RANK')
-
-# normaliza texto
-roi["NOME"] = roi["NOME"].str.upper().map(
+roi = load_geojson(
+    "https://raw.githubusercontent.com/imazon-cgi/ap/main/dataset/geojson/PRESSAO_GERAL_UCs.geojson"
+)
+roi["NOME"] = roi["NOME"].str.upper().apply(
     lambda x: unidecode.unidecode(x) if isinstance(x, str) else x
 )
-roi = roi.sort_values("RANK")
+roi = roi.sort_values(by="RANK")
 
-df["NOME"] = df["NOME"].str.upper().map(
+df = load_df(
+    "https://github.com/imazon-cgi/ap/raw/refs/heads/main/dataset/csv/PRESSAO_GERAL_UCs.parquet"
+)
+df["NOME"] = df["NOME"].str.upper().apply(
     lambda x: unidecode.unidecode(x) if isinstance(x, str) else x
 )
-df = df.sort_values("RANK")
+df = df.sort_values(by="RANK")
 
 # ───────────────────── listas de filtros ────────────────────────
 STATE_OPTS = [{"label": s, "value": s} for s in sorted(df["UF"].dropna().unique())]
-MODAL_OPTS = [{"label": "UC Federal", "value": "UC Federal"},
-              {"label": "UC Estadual", "value": "UC Estadual"}]
-USO_OPTS   = [{"label": "Uso Sustentável",   "value": "Uso Sustentavel"},
-              {"label": "Proteção Integral", "value": "Protecao Integral"}]
+MODAL_OPTS = [
+    {"label": "UC Federal", "value": "UC Federal"},
+    {"label": "UC Estadual", "value": "UC Estadual"},
+]
+USO_OPTS = [
+    {"label": "Uso Sustentável", "value": "Uso Sustentavel"},
+    {"label": "Proteção Integral", "value": "Protecao Integral"},
+]
 
 # ╭───────────────────────────────────────────────────────────────╮
 # │ Função pública – registra o dashboard                         │
@@ -123,40 +130,90 @@ def register_pressao_ucs(flask_server):
                 dbc.Col(
                     dbc.Card(
                         dbc.CardBody(
-                            [
-                                #html.H1("Análise de Pressão de Desmatamento - Amazônia Legal",
-                                #        className="text-center mb-4"),
-                                dbc.Row(
-                                    [
-                                        dbc.Col(html.Label("Modalidade:", className="fw-bold"), width="auto"),
-                                        dbc.Col(dcc.Dropdown(id="modalidade", options=MODAL_OPTS,
-                                                             value="UC Federal", clearable=False), width=3),
-
-                                        dbc.Col(html.Label("Uso:", className="fw-bold"), width="auto"),
-                                        dbc.Col(dcc.Dropdown(id="uso", options=USO_OPTS,
-                                                             value="Uso Sustentavel", clearable=False), width=3),
-
-                                        dbc.Col(html.Label("UF:", className="fw-bold"), width="auto"),
-                                        dbc.Col(dcc.Dropdown(id="uf", options=STATE_OPTS,
-                                                             multi=True, placeholder="Selecione"), width=3),
-
-                                        dbc.Col(dbc.Button([html.I(className="fa fa-filter mr-1"),
-                                                            "Remover Filtros"],
-                                                           id="reset", color="primary",
-                                                           className="btn-sm"), width="auto"),
-
-                                        dbc.Col(dbc.Button([html.I(className="fa fa-download mr-1"),
-                                                            "Baixar CSV"],
-                                                           id="open-modal", color="secondary",
-                                                           className="btn-sm"), width="auto"),
-                                    ],
-                                    justify="end",
-                                    className="mb-3 align-items-center",
-                                ),
-                            ]
+                            dbc.Row(
+                                [
+                                    # Modalidade
+                                    dbc.Col(
+                                        [
+                                            html.Label("Modalidade:", className="filter-label"),
+                                            dcc.Dropdown(
+                                                id="modalidade",
+                                                options=MODAL_OPTS,
+                                                value="UC Federal",
+                                                clearable=False,
+                                                className="filter-dropdown",
+                                            ),
+                                        ],
+                                        xs=12,
+                                        sm=6,
+                                        md=4,
+                                        className="mb-2",
+                                    ),
+                                    # Uso
+                                    dbc.Col(
+                                        [
+                                            html.Label("Uso:", className="filter-label"),
+                                            dcc.Dropdown(
+                                                id="uso",
+                                                options=USO_OPTS,
+                                                value="Uso Sustentavel",
+                                                clearable=False,
+                                                className="filter-dropdown",
+                                            ),
+                                        ],
+                                        xs=12,
+                                        sm=6,
+                                        md=4,
+                                        className="mb-2",
+                                    ),
+                                    # UF
+                                    dbc.Col(
+                                        [
+                                            html.Label("UF:", className="filter-label"),
+                                            dcc.Dropdown(
+                                                id="uf",
+                                                options=STATE_OPTS,
+                                                multi=True,
+                                                placeholder="Selecione",
+                                                className="filter-dropdown",
+                                            ),
+                                        ],
+                                        xs=12,
+                                        sm=6,
+                                        md=4,
+                                        className="mb-2",
+                                    ),
+                                    # Botão reset
+                                    dbc.Col(
+                                        dbc.Button(
+                                            [html.I(className="fa fa-filter me-1"), "Remover Filtros"],
+                                            id="reset",
+                                            color="success",
+                                            className="btn-sm w-100",
+                                        ),
+                                        xs=6,
+                                        sm="auto",
+                                        className="mb-2",
+                                    ),
+                                    # Botão CSV
+                                    dbc.Col(
+                                        dbc.Button(
+                                            [html.I(className="fa fa-download me-1"), "Baixar CSV"],
+                                            id="open-modal",
+                                            color="success",
+                                            className="btn-sm w-100",
+                                        ),
+                                        xs=6,
+                                        sm="auto",
+                                        className="mb-2",
+                                    ),
+                                ],
+                                className="g-2 align-items-end",
+                            ),
+                            className="filter-card-body",
                         ),
-                       className="mb-4",
-    style={"border": "none"}
+                        className="mb-4",
+                        style={"border": "none"},
                     )
                 )
             ),
@@ -165,21 +222,21 @@ def register_pressao_ucs(flask_server):
             # -------- gráficos principais --------
             dbc.Row(
                 [
-                    dbc.Col(dbc.Card(dcc.Graph(id="bar"),  className="graph-block"), width=12, lg=6),
-                    dbc.Col(dbc.Card(dcc.Graph(id="map"),  className="graph-block"), width=12, lg=6),
+                    dbc.Col(dbc.Card(dcc.Graph(id="bar"), className="graph-block"), width=12, lg=6),
+                    dbc.Col(dbc.Card(dcc.Graph(id="map"), className="graph-block"), width=12, lg=6),
                 ],
-               className="mb-4",
-    style={"border": "none"}
+                className="mb-4",
+                style={"border": "none"},
             ),
             dcc.Store(id="selecionados", data=[]),
 
             dbc.Row(
                 [
                     dbc.Col(dbc.Card(dcc.Graph(id="pie-uso"), className="graph-block"), width=12, lg=6),
-                    dbc.Col(dbc.Card(dcc.Graph(id="pie-uc"),  className="graph-block"), width=12, lg=6),
+                    dbc.Col(dbc.Card(dcc.Graph(id="pie-uc"), className="graph-block"), width=12, lg=6),
                 ],
-               className="mb-4",
-    style={"border": "none"}
+                className="mb-4",
+                style={"border": "none"},
             ),
 
             # -------- tabela --------
@@ -188,11 +245,19 @@ def register_pressao_ucs(flask_server):
                     dbc.Card(
                         [
                             dbc.CardHeader("Top 10 Áreas Protegidas Mais Afetadas"),
-                            dbc.CardBody(dbc.Table(id="top10", bordered=False,
-                                                   hover=True, responsive=True, striped=True)),
+                            dbc.CardBody(
+                                dbc.Table(
+                                    id="top10",
+                                    bordered=False,
+                                    hover=True,
+                                    responsive=True,
+                                    striped=True,
+                                    style={"border": "none"},
+                                )
+                            ),
                         ],
-                       className="mb-4",
-    style={"border": "none"}
+                        className="mb-4",
+                        style={"border": "none"},
                     )
                 )
             ),
@@ -206,9 +271,12 @@ def register_pressao_ucs(flask_server):
                             dbc.Checklist(options=STATE_OPTS, id="uf-check", inline=True),
                             html.Hr(),
                             html.Label("Configurações CSV"),
-                            dbc.RadioItems(options=[{"label": "Ponto", "value": "."},
-                                                    {"label": "Vírgula", "value": ","}],
-                                           value=".", id="sep", inline=True),
+                            dbc.RadioItems(
+                                options=[{"label": "Ponto", "value": "."}, {"label": "Vírgula", "value": ","}],
+                                value=".",
+                                id="sep",
+                                inline=True,
+                            ),
                             dbc.Checkbox(label="Sem acentuação", id="no-acc", value=False),
                         ]
                     ),
@@ -256,8 +324,7 @@ def register_pressao_ucs(flask_server):
                 nome = click["points"][0].get("y") or click["points"][0].get("location")
                 if nome:
                     selecionados = (
-                        [n for n in selecionados if n != nome]
-                        if nome in selecionados else selecionados + [nome]
+                        [n for n in selecionados if n != nome] if nome in selecionados else selecionados + [nome]
                     )
 
         dff = df[(df["MODALIDADE"] == modalidade) & (df["USO"] == uso)]
@@ -269,71 +336,77 @@ def register_pressao_ucs(flask_server):
         top10 = dff.nlargest(10, "DESMATAM_1")
 
         # tabela
-        thead = html.Thead(html.Tr([
-            html.Th("Nome"), html.Th("Focos de Calor"), html.Th("Nº CAR"),
-            html.Th("Área CAR"), html.Th("Estradas Não Oficiais")
-        ]))
-        tbody = html.Tbody([
-            html.Tr([
-                html.Td(r["NOME"]),
-                html.Td(r["FOCOS DE C"]),
-                html.Td(r["N DE CAR"]),
-                html.Td(f"{r['CAR']:.2f} km²"),
-                html.Td(f"{r['ESTRADAS N']:.2f} km"),
-            ]) for _, r in top10.iterrows()
-        ])
-        tabela = dbc.Table(
-    [thead, tbody],
-    bordered=False,
-    hover=True,
-    responsive=True,
-    striped=True,
-    style={"border": "none"}
-)
+        thead = html.Thead(
+            html.Tr(
+                [
+                    html.Th("Nome"),
+                    html.Th("Focos de Calor"),
+                    html.Th("Nº CAR"),
+                    html.Th("Área CAR"),
+                    html.Th("Estradas Não Oficiais"),
+                ]
+            )
+        )
+        tbody = html.Tbody(
+            [
+                html.Tr(
+                    [
+                        html.Td(r["NOME"]),
+                        html.Td(r["FOCOS DE C"]),
+                        html.Td(r["N DE CAR"]),
+                        html.Td(f"{r['CAR']:.2f} km²"),
+                        html.Td(f"{r['ESTRADAS N']:.2f} km"),
+                    ]
+                )
+                for _, r in top10.iterrows()
+            ]
+        )
+        tabela = dbc.Table([thead, tbody], bordered=False, hover=True, responsive=True, striped=True, style={"border": "none"})
 
         # barras
         bar = go.Figure(
             go.Bar(
-                y=top10["NOME"], x=top10["DESMATAM_1"], orientation="h",
-                marker_color=["green" if n in selecionados else "DarkSeaGreen"
-                              for n in top10["NOME"]],
+                y=top10["NOME"],
+                x=top10["DESMATAM_1"],
+                orientation="h",
+                marker_color=["green" if n in selecionados else "DarkSeaGreen" for n in top10["NOME"]],
                 text=[f"{v:.2f} km²" for v in top10["DESMATAM_1"]],
                 textposition="auto",
             )
         )
         bar.update_yaxes(autorange="reversed")
         bar.update_layout(
-            xaxis_title="Área (km²)", yaxis_title="Unidades de Conservação",
-            bargap=0.1, font=dict(size=10),
+            xaxis_title="Área (km²)",
+            yaxis_title="Unidades de Conservação",
+            bargap=0.1,
+            font=dict(size=10),
             title=dict(text="Top 10 UCs por Desmatamento", x=0.5, xanchor="center"),
         )
 
         # mapa
         mapa = px.choropleth_mapbox(
-            top10, geojson=roi, color="DESMATAM_1",
-            locations="NOME", featureidkey="properties.NOME",
+            top10,
+            geojson=roi,
+            color="DESMATAM_1",
+            locations="NOME",
+            featureidkey="properties.NOME",
             mapbox_style="carto-positron",
             center=dict(lat=-14, lon=-55),
             color_continuous_scale="YlOrRd",
             zoom=4,
         )
         mapa.update_layout(
-            title=dict(text="Mapa de Pressão de Desmatamento (km²)",
-                       x=0.5, xanchor="center", font=dict(size=14)),
+            title=dict(text="Mapa de Pressão de Desmatamento (km²)", x=0.5, xanchor="center", font=dict(size=14)),
             margin=dict(r=0, t=50, l=0, b=0),
-            mapbox=dict(style="open-street-map", zoom=3,
-                        center=dict(lat=-14, lon=-55)),
+            mapbox=dict(style="open-street-map", zoom=3, center=dict(lat=-14, lon=-55)),
         )
 
         # pizzas
         cores = px.colors.sequential.YlOrRd
-        pie_uso = px.pie(top10, values="DESMATAM_1", names="UF",
-                         color="CATEGORIA",
-                         title="Pressão Desmatamento por Estado de Uso e Categoria")
+        pie_uso = px.pie(top10, values="DESMATAM_1", names="UF", color="CATEGORIA", title="Pressão Desmatamento por Estado de Uso e Categoria")
         pie_uso.update_traces(textinfo="percent+label", marker=dict(colors=cores))
 
-        pie_uc = px.pie(top10, values="DESMATAM_1", names="NOME",
-                        color="USO", title="Pressão Desmatamento por Unidade de Conservação")
+        pie_uc = px.pie(top10, values="DESMATAM_1", names="NOME", color="USO", title="Pressão Desmatamento por Unidade de Conservação")
         pie_uc.update_traces(textinfo="percent+label", marker=dict(colors=cores))
 
         return bar, mapa, pie_uso, pie_uc, selecionados, tabela
@@ -350,7 +423,8 @@ def register_pressao_ucs(flask_server):
     @dash_app.callback(
         Output("download-csv", "data"),
         Input("dwn-btn", "n_clicks"),
-        State("sep", "value"), State("no-acc", "value"),
+        State("sep", "value"),
+        State("no-acc", "value"),
         prevent_initial_call=True,
     )
     def download_csv(n, sep, no_acc):
@@ -359,8 +433,6 @@ def register_pressao_ucs(flask_server):
         out = df.copy()
         if no_acc:
             out = out.applymap(lambda x: unidecode.unidecode(x) if isinstance(x, str) else x)
-        return dcc.send_data_frame(out.to_csv, "pressao_ucs.csv",
-                                   sep=sep, index=False)
+        return dcc.send_data_frame(out.to_csv, "pressao_ucs.csv", sep=sep, index=False)
 
     return dash_app
-

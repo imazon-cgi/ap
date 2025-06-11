@@ -1,0 +1,6 @@
+.filter-label{
+  font-weight:700;
+  white-space:nowrap;
+}
+.filter-dropdown{width:100%;}
+@media (max-width:576px){.filter-card-body{padding:1rem;}}

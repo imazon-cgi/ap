@@ -1,0 +1,13 @@
+
+.filter-label{
+  font-weight:700;         /* negrito */
+  white-space:nowrap;      /* não quebra a palavra */
+}
+
+.filter-dropdown{
+  width:100%;
+}
+
+@media (max-width:576px){
+  .filter-card-body{padding:1rem;}
+}
