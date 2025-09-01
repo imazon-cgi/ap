@@ -25,7 +25,7 @@ function resolveAppDir(appName) {
 const APP_NAME   = process.env.APP_NAME || 'ap';
 const APP_DIR    = resolveAppDir(APP_NAME);
 const PORT_PROD  = Number(process.env.PORT_PROD || process.env.PORT || 3000);
-const PORT_DEV   = Number(process.env.PORT_DEV  || 3001);
+const PORT_DEV   = Number(process.env.PORT_DEV  || 8050);
 
 module.exports = {
   apps: [
