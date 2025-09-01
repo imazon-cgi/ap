@@ -1,0 +1,1691 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard Ameaça & Pressão - GeoJSON</title>
+
+  <!-- CSS libs -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.datatables.net/2.0.3/css/dataTables.dataTables.min.css">
+
+  <style>
+    :root{
+      --primary-color:#008055; --primary-dark:#003300; --accent-color:#FF6D00;
+      --text-color:#212121; --background-color:#F5F5F5; --card-color:#FFFFFF;
+      --border-radius:12px; --box-shadow:0 6px 24px rgba(0,0,0,.08);
+      --pressao-red:#c62828; --ameaca-orange:#FF6D00;
+    }
+    body,.btn,.form-select,.form-control,.stat-card,.card-header{font-family:'Montserrat',sans-serif!important}
+    body{background:var(--background-color);color:var(--text-color);padding:1rem;margin:0;min-width:320px}
+    .dashboard-header{ text-align:center;margin-bottom:1rem;background:var(--card-color);padding:1.25rem;border-radius:var(--border-radius);box-shadow:var(--box-shadow) }
+    .card{border-radius:var(--border-radius);box-shadow:var(--box-shadow);border:none;height:100%;transition:.3s}
+    .card:hover{transform:translateY(-5px)}
+    .card-header{
+      background:var(--card-color)!important;color:var(--primary-dark)!important;font-weight:700!important;
+      border-bottom:2px solid var(--accent-color)!important;padding:.9rem 1.1rem;min-height:56px;
+      display:flex;align-items:center;justify-content:space-between;gap:.75rem
+    }
+    .card-title-wrap{display:flex;align-items:center;gap:.5rem;min-width:0}
+    .card-title-wrap span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+    .dash-controls{background:var(--card-color);padding:1rem;border-radius:var(--border-radius);box-shadow:var(--box-shadow);margin-bottom:1rem}
+    .current-dashboard{background:var(--primary-color);color:#fff;padding:6px 14px;border-radius:22px;font-weight:700;text-align:center;margin-bottom:10px}
+
+    .dashboard-buttons{display:flex;gap:10px;justify-content:center;align-items:stretch;flex-wrap:nowrap}
+    .dashboard-btn{
+      flex:0 0 120px; max-width:140px; min-height:64px;
+      padding:8px 10px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      border:2px solid #e9ecef; border-radius:10px; background:linear-gradient(135deg,#f8f9fa 0%,#e9ecef 100%);
+      cursor:pointer; transition:.2s; text-align:center;
+    }
+    .dashboard-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.12);border-color:var(--primary-color)}
+    .dashboard-btn .dashboard-icon{font-size:18px;margin-bottom:4px}
+    .dashboard-btn .dashboard-title{font-size:13px;font-weight:700;line-height:1.1}
+    .dashboard-btn.ameaca{background:linear-gradient(135deg,#fff3e0 0%,#ffe0b2 100%);border-color:var(--ameaca-orange)}
+    .dashboard-btn.ameaca .dashboard-icon{color:var(--ameaca-orange)}
+    .dashboard-btn.pressao{background:linear-gradient(135deg,#ffebee 0%,#ffcdd2 100%);border-color:var(--pressao-red)}
+    .dashboard-btn.pressao .dashboard-icon{color:var(--pressao-red)}
+    .dashboard-btn.active{outline:2px solid var(--primary-color)}
+
+    .filters-row{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center;margin-top:8px}
+    .filter-btn{
+      background:#fff;border:1px solid #e0e0e0;padding:6px 14px;font-size:13px;border-radius:999px;
+      cursor:pointer;transition:.2s;box-shadow:0 3px 10px rgba(0,0,0,.06);font-weight:700;display:inline-flex;align-items:center;gap:8px;
+    }
+    .filter-btn:hover{background:#f3fff9;border-color:var(--primary-color)}
+    .filter-btn.active{background:var(--primary-color);color:#fff;border-color:var(--primary-color)}
+    .filter-btn i{font-size:14px}
+
+    .time-filter .btn{ --bs-btn-padding-y:.25rem; --bs-btn-padding-x:.6rem; --bs-btn-font-size:.8rem; border-radius:999px; font-weight:700 }
+    .dropdown-menu{max-height:260px; overflow:auto}
+
+    #map{height:460px;width:100%;border-radius:var(--border-radius);box-shadow:inset 0 0 10px rgba(0,0,0,.1)}
+    .chart-container{position:relative;height:460px;width:100%}
+
+    .stat-card{background:var(--primary-color);color:#fff;border-radius:10px;padding:15px;margin-bottom:15px;box-shadow:0 4px 8px rgba(0,0,0,.1)}
+    .stat-label{font-size:.9rem;opacity:.9}.stat-value{font-size:1.8rem;font-weight:700;margin:5px 0}
+    .data-table-container{overflow-x:auto;border-radius:var(--border-radius);box-shadow:0 2px 10px rgba(0,0,0,.05)}
+    #data-table{width:100%}
+    #data-table th{background:var(--primary-dark);color:#fff;font-weight:600;padding:12px}
+    #data-table td{padding:12px;border-bottom:1px solid #eee}
+    #data-table tr:nth-child(even){background:#f9f9f9}
+    #data-table tr:hover{background:#f0faf7}
+
+    .donut-card .card-body{display:flex;flex-direction:column;gap:12px;height:420px}
+    .legend-grid{display:flex;flex-direction:column;gap:8px;max-height:140px;overflow:auto;padding-right:4px}
+    .legend-item{background:#f8f9fa;border:1px solid #e9ecef;border-radius:10px;padding:8px 10px;font-size:12px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;cursor:pointer;transition:.2s;width:100%;text-align:left}
+    .legend-left{display:flex;align-items:flex-start;gap:10px;min-width:0;flex:1 1 auto}
+    .legend-box{width:14px;height:14px;border-radius:3px;display:inline-block;flex:0 0 14px}
+    .legend-label{font-weight:600;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.25;overflow-wrap:anywhere}
+    .legend-meta{font-variant-numeric:tabular-nums;opacity:.9;white-space:nowrap;margin-left:6px;align-self:flex-start}
+
+    @media (min-width: 992px){
+      .donut-card .card-body{flex-direction:row;align-items:stretch}
+      .donut-card .donut-chart-container{flex:0 0 56%;min-height:0;order:1}
+      .donut-card .legend-grid{flex:1 1 44%;max-height:100%;order:2;padding-right:6px}
+    }
+
+    @media (max-width:576px){#map{height:320px}.chart-container{height:320px}}
+    @media (min-width:1025px){.container-fluid{max-width:1400px;margin:0 auto}}
+
+    .download-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:flex-start}
+    .download-chip{appearance:none;border:1px solid #e6e8eb;background:linear-gradient(180deg,#fff 0%,#f6f8f9 100%);padding:10px 14px;border-radius:9999px;font-weight:700;font-size:14px;line-height:1;display:inline-flex;align-items:center;gap:8px;cursor:pointer;color:#1f2937;box-shadow:0 1px 2px rgba(0,0,0,.06),0 6px 16px rgba(0,0,0,.04);transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease}
+    .download-chip:hover{transform:translateY(-1px);border-color:var(--primary-color);box-shadow:0 10px 28px rgba(0,0,0,.12)}
+    .download-chip i{font-size:16px;opacity:.9}
+    .download-chip--excel i{color:#2f855a}
+    .download-chip--pdf i{color:#c62828}
+    #download-actions .dt-buttons{display:flex;gap:10px;flex-wrap:wrap;margin:0!important}
+    #export-table_wrapper .dt-buttons{display:none!important}
+    .leaflet-tooltip.hover-tooltip{
+  background:#fff; color:#111; border:1px solid #ddd; border-radius:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,.15); padding:8px 10px; font-family:'Montserrat',sans-serif;
+}
+/*
+## Alterar aqui --- Selo de ranking (número no mapa) 
+
+  .rank-badge .rank-badge-inner{
+  background:#008055;               
+  color:#fff;
+  border:2px solid #fff;
+  border-radius:999px;
+  width:26px; height:26px;
+  display:flex; align-items:center; justify-content:center;
+  font-weight:800; font-size:12px;
+  box-shadow:0 0 0 2px rgba(0,0,0,.25);
+}
+
+.value-badge .value-badge-inner{
+  background:#008055;         
+  color:#fff;
+  border:2px solid #fff;
+  border-radius:999px;
+  padding:2px 8px;
+  font-weight:800;
+  font-size:12px;
+  line-height:1;
+  box-shadow:0 0 0 2px rgba(0,0,0,.25);
+  white-space:nowrap;
+}
+*/
+/* ===== Overlay global de carregamento ===== */
+#app-loading-overlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(255,255,255,.9);
+  backdrop-filter: saturate(120%) blur(2px);
+  display: none;            /* fica oculto até showLoading() */
+  align-items: center;
+  justify-content: center;
+  z-index: 20000;           /* acima dos cards e do mapa */
+}
+#app-loading-overlay .loading-card{
+  background:#fff;
+  border:1px solid #e6e8eb;
+  border-radius:16px;
+  box-shadow:0 12px 40px rgba(0,0,0,.12);
+  padding:22px 26px;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  font-family:'Montserrat',sans-serif;
+}
+.loading-ring{
+  width:28px; height:28px;
+  border-radius:50%;
+  border:3px solid #e6f4ef;
+  border-top-color: var(--primary-color);
+  animation: spin .9s linear infinite;
+}
+@keyframes spin{ to{ transform: rotate(360deg) } }
+
+/* ===== Overlay global de carregamento ===== */
+#loader-overlay{
+  position:fixed; inset:0; display:none;
+  align-items:center; justify-content:center;
+  background:rgba(255,255,255,.75);
+  backdrop-filter: blur(2px);
+  z-index:20000;
+}
+/* Cartão */
+#loader-overlay .loader-card{
+  background:#fff;
+  border-radius:16px;
+  box-shadow:0 16px 40px rgba(0,0,0,.14);
+  padding:20px 24px;
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+  min-width:220px;
+  font-family:'Montserrat',sans-serif;
+}
+/* Arco animado (spinner) */
+#loader-overlay .loader-arc{
+  width:44px; height:44px; border-radius:50%;
+  /* arco verde de ~90° */
+  background: conic-gradient(var(--primary-color) 0 100deg, transparent 100deg 360deg);
+  /* “fura” o centro para parecer um donut */
+  -webkit-mask: radial-gradient(farthest-side, transparent 62%, #000 64%);
+          mask: radial-gradient(farthest-side, transparent 62%, #000 64%);
+  animation: loader-rotate 0.9s linear infinite;
+}
+@keyframes loader-rotate{ to{ transform: rotate(360deg) } }
+/* Texto */
+#loader-overlay .loader-text{
+  font-weight:700; font-size:15px; color:#4B5563;
+}
+
+
+  </style>
+</head>
+<body>
+  <!-- Overlay de carregamento -->
+<div id="loader-overlay" aria-live="polite" aria-busy="true">
+  <div class="loader-card">
+    <div class="loader-arc" aria-hidden="true"></div>
+    <div class="loader-text">Carregando dados...</div>
+  </div>
+</div>
+
+<div class="container-fluid">
+  <div class="dashboard-header">
+    <img src="../../img/ameaca_e_pressao.png" alt="Ameaça e Pressão" style="max-width:150px;height:auto;display:block;margin:0 auto;">
+  </div>
+
+  <!-- CONTROLES -->
+  <div class="dash-controls">
+    <div id="current-dashboard" class="current-dashboard">Ameaça — Geral</div>
+
+    <!-- 3 botões principais -->
+    <div class="dashboard-buttons">
+      <button id="btn-ameaca" class="dashboard-btn ameaca active" data-class="ameaca">
+        <div class="dashboard-icon"><i class="fas fa-exclamation-triangle"></i></div>
+        <div class="dashboard-title">Ameaça</div>
+      </button>
+      <button id="btn-pressao" class="dashboard-btn pressao" data-class="pressao">
+        <div class="dashboard-icon"><i class="fas fa-fire"></i></div>
+        <div class="dashboard-title">Pressão</div>
+      </button>
+      <button id="btn-geral" class="dashboard-btn" data-class="geral">
+        <div class="dashboard-icon"><i class="fas fa-layer-group"></i></div>
+        <div class="dashboard-title">Geral</div>
+      </button>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filters-row">
+      <button id="btn-ti" class="filter-btn" data-filter="ti"><i class="fas fa-people-group"></i> Terras Indígenas</button>
+      <button id="btn-uc" class="filter-btn" data-filter="uc"><i class="fas fa-tree"></i> Unidades de Conservação</button>
+      <button id="btn-allap" class="filter-btn" data-filter="allap" title="TI + UC"><i class="fas fa-globe-americas"></i> Áreas de Proteção</button>
+
+      <!-- Tempo + Atributos -->
+      <div class="time-filter btn-group">
+        <div class="btn-group" role="group">
+          <button id="btn-ano" type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Ano: Todos</button>
+          <ul class="dropdown-menu" id="menu-ano"></ul>
+        </div>
+        <div class="btn-group" role="group">
+          <button id="btn-tri" type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Trimestre: Todos</button>
+          <ul class="dropdown-menu" id="menu-tri"></ul>
+        </div>
+
+        <div class="btn-group" role="group">
+          <button id="btn-estado" type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Estado: Todos</button>
+          <ul class="dropdown-menu" id="menu-estado"></ul>
+        </div>
+        <div class="btn-group" role="group">
+          <button id="btn-categoria" type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Categoria: Todos</button>
+          <ul class="dropdown-menu" id="menu-categoria"></ul>
+        </div>
+        <div class="btn-group" role="group">
+          <button id="btn-modalidade" type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Modalidade: Todos</button>
+          <ul class="dropdown-menu" id="menu-modalidade"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Estatísticas -->
+  <div class="row mb-4">
+    <div class="col-md-3"><div class="stat-card"><div class="stat-label">Total de Células com Desmatamento</div><div class="stat-value" id="total-records">0</div></div></div>
+    <div class="col-md-3"><div class="stat-card" style="background:#FF6D00"><div class="stat-label">Quantiade Média de Células</div><div class="stat-value" id="total-cells">0</div></div></div>
+    <div class="col-md-3"><div class="stat-card" style="background:#c62828"><div class="stat-label">Número de Áreas Afetadas</div><div class="stat-value" id="filtered-records">0</div></div></div>
+    <div class="col-md-3"><div class="stat-card" style="background:#6c757d"><div class="stat-label">Variação Anual</div><div class="stat-value" id="unique-states">0</div></div></div>
+  </div>
+
+  <!-- Ranking   (esquerda) e Mapa (direita) -->
+  <div class="row mb-4">
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-wrap"><i class="fas fa-chart-bar me-2"></i><span id="rank-card-title">Ranking das 10 Áreas Protegidas mais Pressionadas</span></div>
+        </div>
+        <div class="card-body"><div class="chart-container"><canvas id="barChart"></canvas></div></div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-wrap"><i class="fas fa-map-marked-alt me-2"></i><span id="map-card-title">Mapa das Áreas Protegidas mais Pressionadas</span></div>
+        </div>
+        <div class="card-body"><div id="map"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Donuts 2x2 -->
+  <div id="donuts-block">
+    <div id="donuts-row-1" class="row mb-4">
+      <div id="donut-col-1" class="col-lg-6 col-md-12">
+        <div class="card donut-card">
+          <div class="card-header"><div class="card-title-wrap"><i class="fas fa-chart-pie me-2"></i><span>Distribuição por Uso</span></div></div>
+          <div class="card-body">
+            <div id="legend-donutChart1" class="legend-grid"></div>
+            <div class="donut-chart-container"><canvas id="donutChart1"></canvas></div>
+          </div>
+        </div>
+      </div>
+      <div id="donut-col-2" class="col-lg-6 col-md-12">
+        <div class="card donut-card">
+          <div class="card-header"><div class="card-title-wrap"><i class="fas fa-chart-pie me-2"></i><span>Distribuição por Estado</span></div></div>
+          <div class="card-body">
+            <div id="legend-donutChart2" class="legend-grid"></div>
+            <div class="donut-chart-container"><canvas id="donutChart2"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="donuts-row-2" class="row mb-4">
+      <div id="donut-col-3" class="col-lg-6 col-md-12">
+        <div class="card donut-card">
+          <div class="card-header"><div class="card-title-wrap"><i class="fas fa-chart-pie me-2"></i><span>Distribuição por Modalidade</span></div></div>
+          <div class="card-body">
+            <div id="legend-donutChart3" class="legend-grid"></div>
+            <div class="donut-chart-container"><canvas id="donutChart3"></canvas></div>
+          </div>
+        </div>
+      </div>
+      <div id="donut-col-4" class="col-lg-6 col-md-12">
+        <div class="card donut-card">
+          <div class="card-header"><div class="card-title-wrap"><i class="fas fa-chart-pie me-2"></i><span>Distribuição por Categoria</span></div></div>
+          <div class="card-body">
+            <div id="legend-donutChart4" class="legend-grid"></div>
+            <div class="donut-chart-container"><canvas id="donutChart4"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Downloads -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-wrap">
+            <i class="fas fa-download me-2"></i><span>Downloads</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-success mb-3" role="alert" style="font-weight:600">
+            Baixe aqui os arquivos de Ameaça e Pressão em Áreas Protegidas da Amazônia Legal (Excel, PDF e GeoJSON).
+          </div>
+
+          <div class="download-toolbar" id="download-actions">
+            <button id="btn-geojson-map" class="download-chip download-chip--geo">
+              <i class="fas fa-globe-americas"></i> GeoJSON — Top 10 (Mapa)
+            </button>
+            <button id="btn-geojson-filtered" class="download-chip download-chip--geo">
+              <i class="fas fa-database"></i> GeoJSON — Filtrados
+            </button>
+
+            <button class="download-chip download-chip--excel" id="btn-export-excel">
+              <i class="fas fa-file-excel"></i> Exportar Excel
+            </button>
+            <button class="download-chip download-chip--pdf" id="btn-export-pdf">
+              <i class="fas fa-file-pdf"></i> Exportar PDF
+            </button>
+          </div>
+
+          <!-- Tabela oculta apenas para gerar os arquivos (Excel/PDF) -->
+          <table id="export-table" class="table table-striped" style="display:none">
+            <thead>
+              <tr>
+                <th>Nome</th><th>Classe</th><th>Estado</th>
+                <th>Categoria</th><th>Modalidade</th><th>Uso</th>
+                <th>Células</th><th>Ano</th><th>Período</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- JS libs -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/2.0.3/js/dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.0.1/js/dataTables.buttons.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.0.1/js/buttons.html5.min.js"></script>
+
+<script>
+/* ========================
+   Utilidades gerais
+======================== */
+function mapAcronymLabel(val){
+  const l = String(val ?? '').toLowerCase();
+  if (l === 'ucf') return 'Unidade de Conservação Federal';
+  if (l === 'uce') return 'Unidade de Conservação Estadual';
+  if (l === 'ti')  return 'Terras Indígenas';
+  return val;
+}
+
+/* ===== Estados (UF) — nomes por extenso e parsing de combos ===== */
+const UF_NAMES = {
+  AC:'Acre', AL:'Alagoas', AP:'Amapá', AM:'Amazonas', BA:'Bahia', CE:'Ceará',
+  DF:'Distrito Federal', ES:'Espírito Santo', GO:'Goiás', MA:'Maranhão',
+  MT:'Mato Grosso', MS:'Mato Grosso do Sul', MG:'Minas Gerais', PA:'Pará',
+  PB:'Paraíba', PR:'Paraná', PE:'Pernambuco', PI:'Piauí', RJ:'Rio de Janeiro',
+  RN:'Rio Grande do Norte', RS:'Rio Grande do Sul', RO:'Rondônia', RR:'Roraima',
+  SC:'Santa Catarina', SP:'São Paulo', SE:'Sergipe', TO:'Tocantins'
+};
+
+function stripAccents(s){ return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+function ufCodeToName(code){ return UF_NAMES[code] || code; }
+function tokenToUF(token){
+  if(!token) return null;
+  const t = String(token).trim();
+  const up = t.toUpperCase();
+  if (UF_NAMES[up]) return up; // já é sigla
+  const norm = stripAccents(t).toUpperCase();
+  for (const [code, name] of Object.entries(UF_NAMES)){
+    if (stripAccents(name).toUpperCase() === norm) return code;
+  }
+  return null;
+}
+// ["AM/RO", "Amazonas / Pará"] -> ["AM","RO"] / ["AM","PA"]
+function parseUFs(value){
+  if (value == null) return [];
+  const raw = String(value);
+  return Array.from(new Set(
+    raw.split(/[\/,;|+&]/).map(s=>tokenToUF(s)).filter(Boolean)
+  ));
+}
+// label por extenso mantendo combos: "AM/RO" -> "Amazonas / Rondônia"
+function formatEstadoFull(value){
+  const codes = parseUFs(value);
+  if (!codes.length) return value || '-';
+  return codes.map(ufCodeToName).join(' / ');
+}
+function arraysEqualAsSets(a,b){
+  if (a.length !== b.length) return false;
+  const aa = a.slice().sort(); const bb = b.slice().sort();
+  return aa.every((v,i)=> v === bb[i]);
+}
+
+/* ========================
+   Chart.js plugins
+======================== */
+Chart.register(ChartDataLabels);
+const centerTextPlugin={id:'centerText',beforeDraw(chart){
+  const {ctx,chartArea}=chart;if(!chartArea) return;
+  const opts=chart.config.options.plugins.centerText||{};
+  const text=opts.text||'', color=opts.color||'#28a745', base=opts.fontSize||20, fam=opts.fontFamily||'Montserrat', weight=opts.fontWeight||'700';
+  const w=chartArea.right - chartArea.left, h=chartArea.bottom - chartArea.top, size=Math.max(16,Math.min(base,Math.min(w,h)*.12));
+  ctx.save();ctx.fillStyle=color;ctx.font=`${weight} ${size}px ${fam}`;ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(text,chartArea.left+w/2,chartArea.top+h/2);ctx.restore();
+}};
+const htmlLegendPlugin = {
+  id: 'htmlLegend',
+  afterUpdate(chart, args, options) {
+    const id = options?.containerID; if (!id) return;
+    const el = document.getElementById(id); if (!el) return;
+
+    el.innerHTML = '';
+    el.classList.add('legend-grid');
+
+    const labels = chart.data.labels || [];
+    theDs = chart.data.datasets?.[0] || { data: [], backgroundColor: [] };
+    const total = (theDs.data || []).reduce((a, b) => a + Number(b || 0), 0);
+
+    labels.forEach((label, i) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'legend-item';
+
+      const left = document.createElement('span');
+      left.className = 'legend-left';
+
+      const box = document.createElement('span');
+      box.className = 'legend-box';
+      box.style.background = theDs.backgroundColor?.[i] || '#999';
+
+      const name = document.createElement('span');
+      name.className = 'legend-label';
+      name.textContent = label;
+      name.title = label;
+
+      left.appendChild(box);
+      left.appendChild(name);
+
+      const v = Number(theDs.data?.[i] || 0);
+      const pct = total ? Math.round((v / total) * 100) : 0;
+
+      const meta = document.createElement('span');
+      meta.className = 'legend-meta';
+      meta.textContent = `${v.toLocaleString('pt-BR')} (${pct}%)`;
+
+      btn.appendChild(left);
+      btn.appendChild(meta);
+
+      btn.onclick = () => {
+        const hidden = chart.getDataVisibility(i) === false;
+        chart.toggleDataVisibility(i);
+        btn.style.opacity = hidden ? '1' : '0.5';
+        chart.update();
+      };
+      btn.style.opacity = chart.getDataVisibility(i) === false ? '0.5' : '1';
+
+      el.appendChild(btn);
+    });
+  }
+};
+Chart.register(centerTextPlugin, htmlLegendPlugin);
+
+/* ========================
+   Paletas (d3)
+======================== */
+const DONUT1_PALETTE = ['#8db600', '#659000', '#a1c02c', '#c09713', '#80221b'];
+const STATE_PALETTE = ['#8db600', '#bce444', '#e9a700', '#e5733d', '#ab625e'];
+const MODALITY_PALETTE = ['#704214', '#6d3f11', '#6b9b5a', '#95bd6f', '#f69171'];
+const CATEGORY_PALETTE = ['#867416', '#bea74b', '#f8de7e', '#feeeb8', '#fffff1'];
+const categoryColor = d3.piecewise(d3.interpolateHcl, CATEGORY_PALETTE);
+const modalityColor = d3.piecewise(d3.interpolateHcl, MODALITY_PALETTE);
+const stateColor    = d3.piecewise(d3.interpolateHcl, STATE_PALETTE.slice().reverse());
+
+/* ========================
+   Estado/variáveis globais
+======================== */
+let map, geojsonLayer=null, geojsonData=null, filteredData=[], dataTable=null, barChart=null;
+const chartsStore={};
+const classColors={ameaca:'#FF6D00', pressao:'#c62828', geral:'#008055'};
+let rankBadgesLayer = null;
+let currentClass = 'ameaca';
+let currentFilter = null;     // null | 'ti' | 'uc' | 'allap'
+let ucSubtype = 'all';        // manter 'all' (UCE+UCF)
+let selectedYear = 2023;      // null = Todos
+let selectedQuarter = null;   // null | 1..4
+let selectedEstado = null;    // "AM" ou combo "AM/RO"
+let selectedCategoria = null, selectedModalidade = null;
+
+let rankBadgeIndex = new Map();             // key -> marker do selo fixo
+let hoverValueMarker = null;                // selo temporário com “células”
+let lastHoverKeyForValue = null;            // quem está temporariamente substituído
+
+let featureLayerIndex = new Map();
+let barItems = [];
+let colorMap = new Map();
+
+function getProp(p, ...names){ for(const k of names){ if(p && p[k]!=null && p[k]!=='') return p[k]; } return null; }
+function mkKey(p){ const nome=getProp(p,'nome'); const estado=getProp(p,'estado'); return `${(nome||'').trim()}|${(estado||'').trim()}`; }
+function fallbackColor(){ if (currentClass === 'geral') return d3.interpolateGreys(0.6); if (currentClass === 'ameaca') return d3.interpolateOranges(0.6); return d3.interpolateReds(0.6); }
+function getColorFor(p){ const key=mkKey(p||{}); return colorMap.get(key) || fallbackColor(); }
+
+/* ========================
+   Ano / Trimestre / Legenda
+======================== */
+function _norm(s){ return String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+function getYear(p = {}) { return p.ano ?? p.ANO ?? p.Ano ?? null; }
+function getLegenda(p = {}) {
+  return p.legend ?? p.Legend ?? p.LEGEND ??
+         p.legenda ?? p.Legenda ?? p.LEGENDA ?? null;
+}
+function fixLegendDisplay(txt){
+  if (!txt) return txt;
+  let s = String(txt);
+  s = s.replace(/\bMARCO\b/g, 'MARÇO').replace(/\bMarco\b/g, 'Março').replace(/\bmarco\b/g, 'março');
+  s = s.replace(/m[eê]s\s*a\s*m[eê]s/gi, 'mês a mês');
+  if (!/\(mês a mês\)/i.test(s) && /mês a mês/i.test(s)) s = s.replace(/mês a mês/gi, '(mês a mês)');
+  return s;
+}
+function readQuarterFromValue(v){
+  if (v == null) return null;
+  const s = _norm(v);
+  if (/(^|[^a-z])(jan|fev|marco|mar)([^a-z]|$)/.test(s)) return 1;
+  if (/(^|[^a-z])(abr|mai|jun)([^a-z]|$)/.test(s)) return 2;
+  if (/(^|[^a-z])(jul|ago|set)([^a-z]|$)/.test(s)) return 3;
+  if (/(^|[^a-z])(out|nov|dez)([^a-z]|$)/.test(s)) return 4;
+  const m = s.match(/([1-4])/);
+  return m ? Number(m[1]) : null;
+}
+function getQuarter(p = {}) {
+  const candNum = [
+    p.periodo, p.Periodo, p.PERIODO, p['Período'], p['PERÍODO'],
+    p.trimestre, p.Trimestre, p.TRIMESTRE, p.trim, p.tri
+  ];
+  for (const v of candNum){
+    const n = Number(v);
+    if (Number.isFinite(n) && n >= 1 && n <= 4) return n;
+  }
+  return readQuarterFromValue(getLegenda(p));
+}
+const DEFAULT_LEGENDS = {1:'Jan–Mar', 2:'Abr–Jun', 3:'Jul–Set', 4:'Out–Dez'};
+function periodLabel(p = {}) {
+  const q = getQuarter(p);
+  const legRaw = getLegenda(p) || (q ? DEFAULT_LEGENDS[q] : null);
+  const leg = fixLegendDisplay(legRaw);
+  if (q && leg) return `T${q} — ${leg}`;
+  if (q)        return `T${q}`;
+  return leg || '-';
+}
+function availableQuarters(year){
+  const feats = (geojsonData?.features) || [];
+  const set = new Set();
+  for (const f of feats){
+    const p = f.properties || {};
+    const yOK = (year == null) ? true : String(getYear(p)) === String(year);
+    const q   = getQuarter(p);
+    if (yOK && q) set.add(q);
+  }
+  return Array.from(set).sort((a,b)=>a-b);
+}
+function findLegendaFor(year, quarter){
+  if (quarter == null) return null;
+  const feats = (geojsonData?.features) || [];
+  const hits = feats.filter(f=>{
+    const p = f.properties || {};
+    const yOK = (year == null) ? true : String(getYear(p)) === String(year);
+    return yOK && getQuarter(p) === Number(quarter);
+  });
+  if (!hits.length) return DEFAULT_LEGENDS[quarter] || null;
+  const freq = new Map();
+  hits.forEach(f=>{
+    const l = getLegenda(f.properties || {});
+    if (!l) return;
+    freq.set(l, (freq.get(l)||0) + 1);
+  });
+  let best = null, bestN = -1;
+  freq.forEach((n,k)=>{ if(n>bestN){ bestN=n; best=k; }});
+  return fixLegendDisplay(best || DEFAULT_LEGENDS[quarter] || null);
+}
+function rebuildTriMenu(){
+  const ul = document.getElementById('menu-tri');
+  ul.innerHTML = '';
+  ul.insertAdjacentHTML('beforeend','<li><a class="dropdown-item" data-tri="">Todos</a></li>');
+  const qs = availableQuarters(selectedYear);
+  qs.forEach(q=>{
+    const leg = findLegendaFor(selectedYear, q);
+    const label = leg ? `T${q} — ${leg}` : `T${q}`;
+    ul.insertAdjacentHTML('beforeend', `<li><a class="dropdown-item" data-tri="${q}">${label}</a></li>`);
+  });
+}
+function updateTriButtonLabel(){
+  const btn = document.getElementById('btn-tri');
+  const qs = availableQuarters(selectedYear);
+  if (selectedQuarter == null || !qs.includes(selectedQuarter)){
+    selectedQuarter = null;
+    btn.textContent = 'Trimestre: Todos';
+    return;
+  }
+  const leg = findLegendaFor(selectedYear, selectedQuarter);
+  btn.textContent = leg ? `Trimestre: T${selectedQuarter} — ${leg}` : `Trimestre: T${selectedQuarter}`;
+}
+
+/* ========================
+   Valores numéricos
+======================== */
+function cellValue(p = {}) {
+  const v = p.celulas ?? p.CELULAS ?? p["Celulas"] ?? p["Células"] ?? 0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/* ========================
+   Exportação GeoJSON
+======================== */
+function getDashboardFeatureCollection(mode='map'){
+  let features = [];
+  if (mode === 'map')      features = (barItems || []).map(r => r?._f).filter(Boolean);
+  else if (mode === 'filtered') features = (filteredData || []);
+  else                      features = (geojsonData?.features) || [];
+  const norm = features.map(f => ({ type: 'Feature', properties: { ...(f.properties || {}) }, geometry: f.geometry ? JSON.parse(JSON.stringify(f.geometry)) : null }));
+  return { type: 'FeatureCollection', features: norm };
+}
+function fileContextBase(){
+  const scope = currentFilter || 'geral';
+  const cls = currentClass || 'ameaca';
+  const year = selectedYear ?? 'todos';
+  const ucSub = (scope==='uc') ? `_${ucSubtype}` : '';
+  const tri = selectedQuarter ? `_T${selectedQuarter}` : '';
+  return `ap_mapa_${scope}${ucSub}_${cls}_${year}${tri}`;
+}
+function _saveBlob(data, mime, filename){
+  const blob = new Blob([data], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function _contextFilename(base, mode, ext){
+  const suffix = mode === 'map' ? '_top10' : mode === 'filtered' ? '_filtrados' : '_base';
+  return `${base}${suffix}.${ext}`;
+}
+function downloadGeoJSONFromDashboard(mode='map'){
+  const fc = getDashboardFeatureCollection(mode);
+  if (!fc.features.length) { alert('Não há dados para exportar.'); return; }
+  const name = _contextFilename(fileContextBase(), mode, 'geojson');
+  _saveBlob(JSON.stringify(fc), 'application/geo+json;charset=utf-8', name);
+}
+
+/* ========================
+   Boot inicial
+======================== */
+document.addEventListener('DOMContentLoaded', ()=>{
+  initializeMap();
+  setupButtons();
+  populateYears();
+  document.getElementById('btn-ano').textContent = `Ano: ${selectedYear}`;
+  document.getElementById('btn-tri').textContent = `Trimestre: Todos`;
+  document.getElementById('btn-estado').textContent = `Estado: Todos`;
+  document.getElementById('btn-categoria').textContent = `Categoria: Todos`;
+  document.getElementById('btn-modalidade').textContent = `Modalidade: Todos`;
+  updateAttributeControlsVisibility(); // garante estado inicial
+  loadDashboard();
+});
+
+/* ========================
+   UI (anos/títulos/menus)
+======================== */
+function populateYears(){
+  const ul = document.getElementById('menu-ano');
+  ul.innerHTML = '';
+  ul.insertAdjacentHTML('beforeend','<li><a class="dropdown-item" data-ano="">Todos</a></li>');
+  [2023,2022,2021,2020].forEach(y=>ul.insertAdjacentHTML('beforeend',`<li><a class="dropdown-item" data-ano="${y}">${y}</a></li>`));
+}
+function filename(scope, cls, year, ucSub=''){
+  if(scope===null){ return `ameaca_e_pressao_${year}_geral_${cls}.geojson`; }
+  if(scope==='ti'){  return `ameaca_e_pressao_${year}_categ_ti_${cls}.geojson`; }
+  if(scope==='uc'){
+    if(ucSub==='uce') return `ameaca_e_pressao_${year}_categ_uce_${cls}.geojson`;
+    if(ucSub==='ucf') return `ameaca_e_pressao_${year}_categ_ucf_${cls}.geojson`;
+  }
+  return null;
+}
+const dashboardTitle = (scope, cls, ucSub, ano, triNum) => {
+  const classe = cls === 'ameaca' ? 'Ameaça' : (cls === 'pressao' ? 'Pressão' : 'Geral');
+  let escopo = 'Áreas Protegidas';
+  if (scope === 'ti') escopo = 'Terras Indígenas';
+  if (scope === 'uc') {
+    if (ucSub === 'uce') escopo = 'Unidade de Conservação Estadual';
+    else if (ucSub === 'ucf') escopo = 'Unidade de Conservação Federal';
+    else escopo = 'Unidades de Conservação';
+  }
+  if (scope === 'allap') escopo = 'Todas as Áreas Protegidas';
+  let extra = '';
+  if (ano)    extra += ` — ${ano}`;
+  if (triNum) extra += ` T${triNum}`;
+  return `${classe} — ${escopo}${extra}`;
+};
+function setTitles(){
+  const scope=currentFilter;
+  document.getElementById('current-dashboard').textContent =
+    dashboardTitle(scope,currentClass,ucSubtype,selectedYear,selectedQuarter);
+  const mapTitleEl=document.getElementById('map-card-title');
+  const rankTitleEl=document.getElementById('rank-card-title');
+  const pressionadasDe = (currentClass==='ameaca')?'Mais Ameaçadas':(currentClass==='pressao')?'Mais Pressionadas':'Mais Relevantes';
+  if(scope==='ti'){
+    mapTitleEl.textContent=`Mapa das Terras Indígenas ${pressionadasDe}`;
+    rankTitleEl.textContent=`Ranking das 10 Terras Indígenas ${pressionadasDe}`;
+  }else if(scope==='uc'){
+    mapTitleEl.textContent=`Mapa das Unidades de Conservação ${pressionadasDe}`;
+    rankTitleEl.textContent=`Ranking das 10 Unidades de Conservação ${pressionadasDe}`;
+  }else if(scope==='allap'){
+    mapTitleEl.textContent=`Mapa de Todas as Áreas Protegidas ${pressionadasDe}`;
+    rankTitleEl.textContent=`Ranking das 10 Áreas Protegidas ${pressionadasDe}`;
+  }else{
+    mapTitleEl.textContent=`Mapa das Áreas Protegidas ${pressionadasDe}`;
+    rankTitleEl.textContent=`Ranking das 10 Áreas Protegidas ${pressionadasDe}`;
+  }
+}
+
+/* ========================
+   Mostra/oculta Categoria/Modalidade em TI
+======================== */
+function updateAttributeControlsVisibility(){
+  const catBtn = document.getElementById('btn-categoria');
+  const modBtn = document.getElementById('btn-modalidade');
+  if (!catBtn || !modBtn) return;
+
+  const catGroup = catBtn.parentElement;
+  const modGroup = modBtn.parentElement;
+
+  const show = currentFilter !== 'ti'; // em TI, esconder
+  if (catGroup) catGroup.style.display = show ? '' : 'none';
+  if (modGroup) modGroup.style.display = show ? '' : 'none';
+
+  if (!show){
+    selectedCategoria = null;
+    selectedModalidade = null;
+    catBtn.textContent = 'Categoria: Todos';
+    modBtn.textContent = 'Modalidade: Todos';
+  }
+}
+
+/* ========================
+   Mapa
+======================== */
+function initializeMap(){
+  if (map) { try{ map.off(); map.remove(); }catch(e){} }
+  map = L.map('map').setView([-5,-55],5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors'}).addTo(map);
+}
+function paintLayer(layer, color){
+  if (!layer) return;
+  if (layer.setStyle) layer.setStyle({ color, fillColor: color, weight:2, opacity:0.95, fillOpacity:0.6 });
+  if (layer.eachLayer) layer.eachLayer(child => paintLayer(child, color));
+}
+function buildPopupHTML(p, rank){
+  return `
+    <div style="font-family:Montserrat,sans-serif;min-width:220px">
+      <div style="font-weight:700;font-size:14px;margin-bottom:4px">${p.nome||'-'}</div>
+      ${rank ? `<div style="margin-bottom:4px"><b>Ranking:</b> ${rank}</div>` : ``}
+      <div><b>Estado:</b> ${formatEstadoFull(p.estado)}</div>
+      <div><b>Categoria:</b> ${mapAcronymLabel(p.categoria ?? '-')}</div>
+      <div><b>Modalidade:</b> ${mapAcronymLabel(p.modalidade||'-')}</div>
+      <div><b>Uso:</b> ${p.uso||'-'}</div>
+      <div><b>Células de desmatamento:</b> ${Number(p.celulas||0).toLocaleString('pt-BR')}</div>
+      <div><b>Ano:</b> ${p.ano||'-'} &nbsp; <b>Trimestre:</b> ${periodLabel(p)}</div>
+    </div>`;
+}
+function updateMap(){
+  // Remove a camada anterior
+  if (geojsonLayer){ try{ geojsonLayer.remove(); }catch(e){} }
+  featureLayerIndex = new Map();
+
+  // Trabalhamos apenas com os itens do ranking atual (top 10)
+  const featuresToDraw = (barItems || []).map(r => r._f).filter(Boolean);
+
+  // chave -> posição no ranking (1..10)
+  const rankByKey = new Map();
+  (barItems || []).forEach((r, i) => {
+    const key = mkKey(r?._f?.properties || {});
+    rankByKey.set(key, i + 1);
+  });
+
+  // Tooltip HTML (exibido no HOVER)
+  const buildHoverHTML = (p, rank) => `
+    <div style="font-family:Montserrat,sans-serif;min-width:240px">
+      <div style="font-weight:700;font-size:14px;margin-bottom:6px">
+        ${p.nome || '-'}
+      </div>
+      ${rank ? `<div><b>Posição no Ranking:</b> #${rank}°</div>` : ``}
+      <div><b>Estado:</b> ${formatEstadoFull(p.estado)}</div>
+      <div><b>Categoria:</b> ${mapAcronymLabel(p.categoria ?? '-')}</div>
+      <div><b>Modalidade:</b> ${mapAcronymLabel(p.modalidade || '-')}</div>
+      <div><b>Uso:</b> ${p.uso || '-'}</div>
+      <div><b>Células:</b> ${Number(p.celulas || 0).toLocaleString('pt-BR')}</div>
+      <div><b>Ano:</b> ${p.ano || '-'} &nbsp; <b>Trimestre:</b> ${periodLabel(p)}</div>
+    </div>`;
+
+  const mapFeatures = [];
+  geojsonLayer = L.geoJSON(featuresToDraw, {
+    style: f => {
+      const p = f.properties || {};
+      const c = getColorFor(p);
+      return { color:c, fillColor:c, weight:2, opacity:0.95, fillOpacity:0.6 };
+    },
+    pointToLayer: (f, latlng) => L.circleMarker(latlng, {
+      radius:6, weight:1,
+      color:getColorFor(f.properties||{}),
+      fillColor:getColorFor(f.properties||{}),
+      fillOpacity:0.7
+    }),
+    onEachFeature: (f, layer) => {
+      const p = f.properties || {};
+      const key = mkKey(p);
+      featureLayerIndex.set(key, layer);
+      mapFeatures.push(layer);
+
+      // Somente tooltip (hover) — sem popup ao clique
+      layer.unbindPopup?.();
+
+      const rank = rankByKey.get(key) || null;
+      layer.bindTooltip(
+        buildHoverHTML(p, rank),
+        { sticky:true, direction:'top', opacity:1, className:'ap-hover-card' }
+      );
+
+      // realce no hover
+      layer.on('mouseover', () => {
+        layer.bringToFront?.();
+        layer.setStyle?.({ weight:4, opacity:1 });
+      });
+      layer.on('mouseout', () => {
+        const c = getColorFor(p);
+        paintLayer(layer, c);
+        layer.setStyle?.({ weight:2, opacity:0.95 });
+      });
+
+      // cor inicial
+      paintLayer(layer, getColorFor(p));
+    }
+  }).addTo(map);
+
+  if (mapFeatures.length > 0) {
+    try { map.fitBounds(geojsonLayer.getBounds(), { padding:[20,20] }); } catch(e){}
+  }
+}
+
+
+/* ========================
+   Botões / eventos
+======================== */
+function setupButtons(){
+  document.getElementById('btn-ameaca').addEventListener('click',()=>selectClass('ameaca'));
+  document.getElementById('btn-pressao').addEventListener('click',()=>selectClass('pressao'));
+  document.getElementById('btn-geral').addEventListener('click',()=>selectClass('geral'));
+
+  const btnTI = document.getElementById('btn-ti');
+  const btnUC = document.getElementById('btn-uc');
+  const btnALL = document.getElementById('btn-allap');
+
+  function setActiveFilterButton(){
+    [btnTI, btnUC, btnALL].forEach(b=>b.classList.remove('active'));
+    if(currentFilter==='ti') btnTI.classList.add('active');
+    else if(currentFilter==='uc') btnUC.classList.add('active');
+    else if(currentFilter==='allap') btnALL.classList.add('active');
+  }
+
+  btnTI.addEventListener('click',()=>{
+    currentFilter=(currentFilter==='ti')?null:'ti';
+    setActiveFilterButton();
+    updateAttributeControlsVisibility();
+    loadDashboard();
+  });
+  btnUC.addEventListener('click',()=>{
+    currentFilter=(currentFilter==='uc')?null:'uc';
+    setActiveFilterButton();
+    updateAttributeControlsVisibility();
+    loadDashboard();
+  });
+  btnALL.addEventListener('click',()=>{
+    currentFilter=(currentFilter==='allap')?null:'allap';
+    setActiveFilterButton();
+    updateAttributeControlsVisibility();
+    loadDashboard();
+  });
+
+  // Ano
+  document.getElementById('menu-ano').addEventListener('click',(e)=>{
+    const li = e.target.closest('.dropdown-item'); if(!li) return;
+    const val = li.getAttribute('data-ano') || '';
+    selectedYear = val ? parseInt(val,10) : null;
+
+    document.getElementById('btn-ano').textContent = `Ano: ${selectedYear ?? 'Todos'}`;
+    rebuildTriMenu();
+    updateTriButtonLabel();
+    loadDashboard();
+  });
+
+  // Trimestre
+  document.getElementById('menu-tri').addEventListener('click',(e)=>{
+    const li = e.target.closest('.dropdown-item'); if(!li) return;
+    const v = li.getAttribute('data-tri');
+    selectedQuarter = v ? parseInt(v,10) : null;
+    updateTriButtonLabel();
+    loadDashboard();
+  });
+
+  // Estado (simples ou combinação)
+  document.getElementById('menu-estado').addEventListener('click',(e)=>{
+    const li = e.target.closest('.dropdown-item'); if(!li) return;
+    const val = li.getAttribute('data-estado') || '';
+    selectedEstado = val || null;
+
+    const label = !selectedEstado
+      ? 'Todos'
+      : (selectedEstado.includes('/') ? formatEstadoFull(selectedEstado) : ufCodeToName(selectedEstado));
+
+    document.getElementById('btn-estado').textContent = `Estado: ${label}`;
+    loadDashboard();
+  });
+
+  // Categoria/Modalidade
+  document.getElementById('menu-categoria').addEventListener('click',(e)=>{
+    const li = e.target.closest('.dropdown-item'); if(!li) return;
+    const val = li.getAttribute('data-categoria') || '';
+    selectedCategoria = val || null;
+    document.getElementById('btn-categoria').textContent = `Categoria: ${selectedCategoria ?? 'Todos'}`;
+    loadDashboard();
+  });
+  document.getElementById('menu-modalidade').addEventListener('click',(e)=>{
+    const li = e.target.closest('.dropdown-item'); if(!li) return;
+    const val = li.getAttribute('data-modalidade') || '';
+    selectedModalidade = val || null;
+    const label = selectedModalidade ? mapAcronymLabel(selectedModalidade) : 'Todos';
+    document.getElementById('btn-modalidade').textContent = `Modalidade: ${label}`;
+    loadDashboard();
+  });
+
+  document.getElementById('btn-geojson-map').addEventListener('click', ()=>{ downloadGeoJSONFromDashboard('map'); });
+  document.getElementById('btn-geojson-filtered').addEventListener('click', ()=>{ downloadGeoJSONFromDashboard('filtered'); });
+}
+function selectClass(cls){
+  currentClass = cls;
+  document.querySelectorAll('.dashboard-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelector(`[data-class="${cls}"]`).classList.add('active');
+  loadDashboard();
+}
+
+/* ========================
+   Loader
+======================== */
+
+function showLoader(msg="Carregando dados..."){
+  const l=document.getElementById('loader-overlay'); if(!l) return;
+  const t=l.querySelector('.loader-text'); if(t) t.textContent=msg;
+  l.style.display='flex';
+}
+function hideLoader(){
+  const l=document.getElementById('loader-overlay'); if(l) l.style.display='none';
+}
+/* Compat com suas chamadas existentes */
+function showLoading(msg){ showLoader(msg || "Carregando dados..."); }
+function hideLoading(){ hideLoader(); }
+
+
+/* ========================
+   Fetch/merge
+======================== */
+async function safeFetch(url){
+  try{
+    const res = await fetch(url);
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  }catch(e){
+    console.warn('Erro ao carregar', url, e.message);
+    return null;
+  }
+}
+function mergeCollections(collections){
+  const all = [];
+  collections.forEach(c => { if(c && Array.isArray(c.features)) all.push(...c.features); });
+  return { type:'FeatureCollection', features: all };
+}
+function targetsFor(scope, cls, year, ucSub){
+  const t = [];
+  const addUC = (c, sub)=>{ t.push(filename('uc', c, year, sub)); };
+  const addTI = (c)=>{ t.push(filename('ti', c, year)); };
+
+  if(scope===null){
+    if(cls==='geral'){ t.push(filename(null,'ameaca',year)); t.push(filename(null,'pressao',year)); }
+    else{ t.push(filename(null,cls,year)); }
+    return t;
+  }
+  if(scope==='ti'){
+    if(cls==='geral'){ addTI('ameaca'); addTI('pressao'); }
+    else{ addTI(cls); }
+    return t;
+  }
+  if(scope==='uc'){
+    // Como removemos o subfiltro, sempre busca UCE + UCF
+    if(cls==='geral'){
+      addUC('ameaca','uce'); addUC('pressao','uce');
+      addUC('ameaca','ucf'); addUC('pressao','ucf');
+    }else{
+      addUC(cls,'uce'); addUC(cls,'ucf');
+    }
+    return t;
+  }
+  if(scope==='allap'){
+    if(cls==='geral'){
+      addTI('ameaca'); addTI('pressao');
+      addUC('ameaca','uce'); addUC('pressao','uce');
+      addUC('ameaca','ucf'); addUC('pressao','ucf');
+    }else{
+      addTI(cls);
+      addUC(cls,'uce'); addUC(cls,'ucf');
+    }
+    return t;
+  }
+  return t;
+}
+
+/* ========================
+   Carregar dashboard
+======================== */
+async function loadDashboard(){
+  showLoading();
+  updateAttributeControlsVisibility();
+  try {
+    setTitles();
+
+    const basePath = '../dataset/ap/geojson/';
+    const scope = currentFilter;
+    const years = (selectedYear == null)
+      ? [2020,2021,2022,2023]
+      : [selectedYear, selectedYear - 1].filter(y => y >= 2020 && y <= 2023);
+
+    const allTargets = years.flatMap(y => targetsFor(scope, currentClass, y, ucSubtype)).filter(Boolean);
+    const results = await Promise.all(allTargets.map(f => safeFetch(basePath + f)));
+    geojsonData = mergeCollections(results.filter(Boolean));
+
+    rebuildTriMenu();
+    updateTriButtonLabel();
+    populateAttributeMenus(); // inclui Estados (simples + combinações)
+
+    const feats = geojsonData.features || [];
+    filteredData = feats.filter(f=>{
+      const p = f.properties || {};
+      const anoOK = (selectedYear==null) ? true : (String(p.ano)===String(selectedYear));
+      const q = getQuarter(p);
+      const triOK = (selectedQuarter == null) ? true : (q === selectedQuarter);
+
+      const codes = parseUFs(p.estado);
+      let estOK = true;
+      if (selectedEstado){
+        if (selectedEstado.includes('/')){
+          estOK = arraysEqualAsSets(codes, parseUFs(selectedEstado)); // combinação exata
+        }else{
+          estOK = codes.includes(String(selectedEstado).toUpperCase()); // contém UF simples
+        }
+      }
+
+      const catOK = selectedCategoria  ? (String(p.categoria||'') === String(selectedCategoria)) : true;
+      const modOK = selectedModalidade ? (String(p.modalidade||'') === String(selectedModalidade)) : true;
+
+      return anoOK && triOK && estOK && catOK && modOK;
+    });
+
+    updateBarChart();
+    updateMap();
+    updateDonutCharts();
+    updateExportTable();
+    updateStatistics();
+
+  } catch (err) {
+    console.error('Falha ao carregar dashboard:', err);
+  } finally {
+    hideLoading();
+  }
+}
+
+/* ========================
+   Ranking (barra)
+======================== */
+function wrapLabelToTwoLines(label, maxLineLen=28){
+  const words = String(label).split(' ');
+  const lines = [''];
+  words.forEach(w=>{
+    const last = lines[lines.length-1];
+    if((last + ' ' + w).trim().length <= maxLineLen){
+      lines[lines.length-1] = (last ? last + ' ' : '') + w;
+    }else if(lines.length < 2){
+      lines.push(w);
+    }
+  });
+  if(lines.length > 2){ lines.length = 2; }
+
+  const allWordsLen = words.join(' ').length;
+  const joined = lines.join(' ');
+
+  if(joined.length < allWordsLen && lines.length === 2){
+    if(lines[1].length > 3){
+      lines[1] = lines[1].slice(0, Math.max(0, lines[1].length - 3)) + '...';
+    }else{
+      lines[1] = lines[1] + '...';
+    }
+  }
+  return lines;
+}
+
+let lastHoverIdx = null;
+let hoverMarker = null;
+
+function getLayerCenter(layer){
+  try{
+    if (layer.getBounds){
+      const b = layer.getBounds();
+      if (b && b.isValid && b.isValid()) return b.getCenter();
+    }
+    if (layer.getLatLng) return layer.getLatLng();
+    let c = null; layer.eachLayer?.(l => { if(!c){ c = getLayerCenter(l); } });
+    return c;
+  }catch(e){ return null; }
+}
+function resetAllLayerStyles(){
+  featureLayerIndex.forEach((layer)=>{
+    const p = layer.feature?.properties || {};
+    const c = getColorFor(p);
+    paintLayer(layer, c);
+    if (layer.setStyle) layer.setStyle({ weight: 2, opacity: 0.95 });
+  });
+}
+// Não queremos mais nenhum "badge" nem tooltip abrindo no hover do gráfico
+function highlightBarOnMap(idx){
+  // volta estilos originais de todas as feições
+  resetAllLayerStyles();
+
+  // fecha qualquer tooltip que possa estar aberto de interações anteriores
+  featureLayerIndex.forEach(layer => layer.closeTooltip?.());
+
+  // se o mouse saiu da barra, não faz nada no mapa
+  if (idx == null) return;
+
+  // destaque visual APENAS na feição correspondente
+  const item  = barItems[idx];
+  const layer = featureLayerIndex.get(item.key);
+  if (!layer) return;
+
+  if (layer.bringToFront) layer.bringToFront();
+  if (layer.setStyle)     layer.setStyle({ weight: 4, opacity: 1 });
+
+  // IMPORTANTE:
+  // - Não criar marker (hoverMarker).
+  // - Não chamar layer.bindTooltip(...).openTooltip(center).
+  //   O tooltip continua vinculado lá no updateMap(), mas só
+  //   aparecerá quando o usuário passar o mouse SOBRE o mapa.
+}
+function updateBarChart() {
+  const ctx = document.getElementById('barChart').getContext('2d');
+  if (barChart) barChart.destroy();
+
+  // === Top 10 (sem UF no rótulo do eixo Y) ===
+  const rows = (filteredData || [])
+    .map(f => ({
+      name: f.properties?.nome || '-',
+      state: formatEstadoFull(f.properties?.estado || '-'),
+      cells: Number(f.properties?.celulas) || 0,
+      key: mkKey(f.properties || {}),
+      _f: f
+    }))
+    .sort((a, b) => b.cells - a.cells)
+    .slice(0, 10);
+
+  const labels = rows.map(d => wrapLabelToTwoLines(d.name, 28));
+  const values = rows.map(d => d.cells);
+  barItems = rows;
+
+  const maxVal = values.reduce((m, v) => Math.max(m, v), 0);
+  const suggestedMax = maxVal > 0 ? Math.ceil(maxVal * 1.25) : 10;
+
+  // Paleta coerente por classe
+  const n = values.length || 1;
+  const tSeq = (from, to, n) =>
+    Array.from({ length: n }, (_, i) => from + (to - from) * (i / Math.max(1, n - 1)));
+  const colors = tSeq(0.9, 0.35, n).map(t =>
+    currentClass === 'geral'   ? d3.interpolateGreys(t) :
+    currentClass === 'ameaca' ? d3.interpolateOranges(t) :
+                                d3.interpolateReds(t)
+  );
+
+  colorMap = new Map();
+  rows.forEach((r, i) => colorMap.set(r.key, colors[i]));
+
+  const BAR_THICK = 20;
+  const RADIUS    = 6; // mantenho leve arredondamento
+
+  barChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Células',
+        data: values,
+        backgroundColor: colors,
+        borderColor: colors,
+        borderWidth: 0,
+        borderSkipped: false,
+        borderRadius: {
+          topLeft: RADIUS, bottomLeft: RADIUS,
+          topRight: RADIUS, bottomRight: RADIUS
+        },
+        barThickness: BAR_THICK,
+        maxBarThickness: BAR_THICK,
+        barPercentage: 0.9,
+        categoryPercentage: 0.7,
+        clip: false
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+
+      // 🔧 Dá espaço para os rótulos ficarem fora da barra
+      layout: { padding: { top: 16, right: 48, left: 6, bottom: 12 } },
+
+      onHover: (evt, elements) => {
+        evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+        const idx = elements.length ? elements[0].index : null;
+        if (idx !== lastHoverIdx) { lastHoverIdx = idx; highlightBarOnMap(idx); }
+      },
+      onClick: (evt, elements) => {
+        if (!elements.length) return;
+        const idx = elements[0].index;
+        const item = barItems[idx];
+        const layer = featureLayerIndex.get(item.key);
+        if (layer) zoomToLayer(layer);
+      },
+
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => {
+              const idx = items[0].dataIndex;
+              const cls = (barItems[idx]?._f?.properties?.class) || currentClass;
+              const clsTxt = cls === 'ameaca' ? 'Ameaça' : cls === 'pressao' ? 'Pressão' : 'Geral';
+              return `${barItems[idx].name} — ${clsTxt}`;
+            },
+            afterLabel: (ctx) => {
+              const st = barItems[ctx.dataIndex]?.state || '-';
+              return `\nEstado(s): ${st}`;
+            },
+            label: (ctx) => ` ${Number(ctx.parsed?.x ?? ctx.raw ?? 0).toLocaleString('pt-BR')} células`
+          }
+        },
+
+        // ✅ Rótulo FORA da barra
+        datalabels: {
+          anchor: 'end',   // ancora na ponta direita da barra (horizontal)
+          align: 'end',    // posiciona depois da âncora (fora da barra)
+          offset: 12,      // distância para fora
+          clamp: false,    // não força ficar dentro
+          clip: false,     // permite desenhar fora da área do gráfico
+          color: '#111',
+          font: { weight: '700', size: 12 },
+          formatter: v => Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
+        }
+      },
+
+      scales: {
+        x: {
+          beginAtZero: true,
+          suggestedMax,
+          grid: { display: false, drawBorder: false },
+          ticks: {
+            callback: v => Number(v).toLocaleString('pt-BR'),
+            font: { family: 'Montserrat' }
+          },
+          title: {
+            display: true,
+            text: 'Nº de células com ocorrência de desmatamento',
+            font: { family: 'Montserrat', weight: '700' }
+          }
+        },
+        y: {
+          grid: { display: false, drawBorder: false },
+          ticks: {
+            autoSkip: false,
+            font: ctx => ({ family: 'Montserrat', size: (ctx.chart.height || 400) < 360 ? 10 : 12 })
+          }
+        }
+      }
+    }
+  });
+}
+
+function zoomToLayer(layer){
+  try{
+    if (typeof layer.getBounds === 'function') {
+      const b = layer.getBounds();
+      if (b && b.isValid && b.isValid()) map.fitBounds(b, { padding:[30,30], maxZoom: 10 });
+      else if (layer.getLatLng) map.setView(layer.getLatLng(), 9);
+    } else if (layer.getLatLng) map.setView(layer.getLatLng(), 9);
+    layer.openPopup?.();
+    if (layer.setStyle) {
+      const orig = { color: layer.options.color, weight: layer.options.weight };
+      layer.setStyle({ color: '#000', weight: (orig.weight||2) + 2 });
+      setTimeout(()=> layer.setStyle(orig), 800);
+    }
+  }catch(e){}
+}
+
+/* ========================
+   Donuts
+======================== */
+function makeAgg(features,keys){
+  const counts={}; let total=0;
+  (features||[]).forEach(f=>{
+    const p=f.properties||{}; let value=null;
+    for(const k of keys){ if(p[k]!==undefined && p[k]!==null && p[k]!==''){ value=p[k]; break; } }
+    if(value){ const c=parseInt(p.celulas)||0; counts[value]=(counts[value]||0)+c; total+=c; }
+  });
+  return { labels:Object.keys(counts), values:Object.values(counts), total };
+}
+function buildDonut(canvasId,legendId,labels,values,total, palette=null){
+  const ctx=document.getElementById(canvasId).getContext('2d');
+  if(chartsStore[canvasId]) chartsStore[canvasId].destroy();
+
+  const n = (labels?.length || 1);
+  let bg;
+
+  if (typeof palette === 'function') {
+    bg = labels.map((_,i)=> palette(n>1 ? i/(n-1) : 0));
+  } else if (Array.isArray(palette) && palette.length) {
+    const dom = palette.length >= 5 ? [0,0.25,0.5,0.75,1] : palette.map((_,i)=> (palette.length>1 ? i/(palette.length-1) : 0));
+    const seq = d3.scaleLinear().domain(dom).range(palette);
+    bg = labels.map((_,i)=> seq(n>1 ? i/(n-1) : 0));
+  } else {
+    const rainbow=d3.scaleSequential().domain([0,n]).interpolator(d3.interpolateRainbow);
+    bg = labels.map((_,i)=> rainbow(i));
+  }
+
+  const chart=new Chart(ctx,{
+    type:'doughnut',
+    data:{ labels, datasets:[{ data:values, backgroundColor:bg, borderColor:bg, borderWidth:1 }] },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      cutout:'60%',
+      plugins:{
+        legend:{ display:false },
+        tooltip:{
+          callbacks:{
+            label:(c)=>{
+              const v=Number(c.raw||0);
+              const tot=(c.dataset.data||[]).reduce((a,b)=>a+Number(b||0),0);
+              const pct=tot?Math.round((v/tot)*100):0;
+              return `${c.label}: ${v.toLocaleString('pt-BR')} (${pct}%)`;
+            }
+          }
+        },
+        // ⬇️ Números com preenchimento preto e contorno branco
+        datalabels:{
+          display:(ctx)=>{
+            const d=ctx.dataset.data||[];
+            const sum=d.reduce((a,b)=>a+Number(b||0),0);
+            const v=Number(d[ctx.dataIndex]||0);
+            const pct=sum?(v/sum)*100:0;
+            return pct>=3; // exibe apenas se tiver >=3% para evitar poluição
+          },
+          formatter:(v)=>Number(v||0).toFixed(0),
+          font:(ctx)=>{
+            const w=ctx.chart.width||300;
+            const s=Math.max(12,Math.min(16,Math.round(w*.02)));
+            return { weight:'bold', size:s };
+          },
+          color:'#000',            // 🔁 agora PRETO dentro
+          textStrokeColor:'#fff',  // 🔁 contorno BRANCO
+          textStrokeWidth:3,
+          anchor:'center',
+          align:'center',
+          offset:0,
+          clip:false,
+          padding:2
+        },
+        centerText:{
+          text:`${(total||0).toLocaleString('pt-BR')} células`,
+          color:'#28a745',
+          fontSize:22,
+          fontFamily:'Montserrat',
+          fontWeight:'700'
+        },
+        htmlLegend:{ containerID:legendId }
+      }
+    }
+  });
+
+  chartsStore[canvasId]=chart;
+}
+
+function updateDonutCharts(){
+  ['donutChart1','donutChart2','donutChart3','donutChart4'].forEach(id=>{
+    if(chartsStore[id]) chartsStore[id].destroy(); chartsStore[id]=null;
+  });
+
+  const aggUso = makeAgg(filteredData,['uso','categoria']);
+  const aggEst = makeAgg(filteredData,['estado']);
+  const aggMod = makeAgg(filteredData,['modalidade']);
+  const aggCat = makeAgg(filteredData,['categoria']);
+
+  const estadoLabelsFull = (aggEst.labels || []).map(formatEstadoFull);
+  const mapAll = (arr)=> (arr||[]).map(mapAcronymLabel);
+
+  const row1=document.getElementById('donuts-row-1');
+  const row2=document.getElementById('donuts-row-2');
+  const c1=document.getElementById('donut-col-1');
+  const c2=document.getElementById('donut-col-2');
+  const c3=document.getElementById('donut-col-3');
+  const c4=document.getElementById('donut-col-4');
+
+  if(currentFilter==='ti'){
+    row2.style.display='none'; c1.style.display='none'; c3.style.display='none'; c4.style.display='none';
+    c2.style.display=''; c2.classList.remove('col-lg-6'); c2.classList.add('col-lg-12');
+    buildDonut('donutChart2','legend-donutChart2', estadoLabelsFull, aggEst.values, aggEst.total, stateColor);
+  } else {
+    row2.style.display=''; c1.style.display=''; c2.style.display=''; c3.style.display=''; c4.style.display='';
+    c2.classList.remove('col-lg-12'); c2.classList.add('col-lg-6');
+
+    buildDonut('donutChart1','legend-donutChart1', aggUso.labels, aggUso.values, aggUso.total, DONUT1_PALETTE);
+    buildDonut('donutChart2','legend-donutChart2', estadoLabelsFull, aggEst.values, aggEst.total, stateColor);
+    buildDonut('donutChart3','legend-donutChart3', mapAll(aggMod.labels), aggMod.values, aggMod.total, modalityColor);
+    buildDonut('donutChart4','legend-donutChart4', mapAll(aggCat.labels), aggCat.values, aggCat.total, categoryColor);
+  }
+}
+
+/* ========================
+   Export (Excel/PDF)
+======================== */
+let exportTable = null;
+function updateExportTable() {
+  if (exportTable) { exportTable.destroy(); exportTable = null; }
+
+  const tbody = document.querySelector('#export-table tbody');
+  tbody.innerHTML = '';
+
+  (filteredData || []).forEach(f => {
+    const p = f.properties || {};
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${p.nome || '-'}</td>
+      <td>${p.class || '-'}</td>
+      <td>${formatEstadoFull(p.estado) || '-'}</td>
+      <td>${mapAcronymLabel(p.categoria || '-')}</td>
+      <td>${mapAcronymLabel(p.modalidade || '-')}</td>
+      <td>${p.uso || '-'}</td>
+      <td>${cellValue(p)}</td>
+      <td>${p.ano || '-'}</td>
+      <td>${periodLabel(p)}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  exportTable = new DataTable('#export-table', {
+    paging: false,
+    searching: false,
+    info: false,
+    order: [[6, 'desc']],
+    language: { url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/pt-BR.json' },
+    dom: 'Bfrtip',
+    buttons: [
+      { extend: 'excelHtml5', text: '<i class="fas fa-file-excel"></i> Excel', title: fileContextBase(), className: 'download-chip download-chip--excel', name: 'excelChip' },
+      { extend: 'pdfHtml5',   text: '<i class="fas fa-file-pdf"></i> PDF',   title: fileContextBase(), orientation: 'landscape', pageSize: 'A4', className: 'download-chip download-chip--pdf', name: 'pdfChip' }
+    ]
+  });
+
+  document.getElementById('btn-export-excel').onclick = () => exportTable.button('excelChip:name').trigger();
+  document.getElementById('btn-export-pdf').onclick   = () => exportTable.button('pdfChip:name').trigger();
+}
+
+/* ========================
+   Estatísticas
+======================== */
+function updateStatistics(){
+  const feats = filteredData || [];
+  const totalRegistros = feats.length;
+  const totalCelulas   = feats.reduce((s, f) => s + cellValue(f?.properties || {}), 0);
+  const mediaCelulas   = totalRegistros ? totalCelulas / totalRegistros : 0;
+
+  let variacaoTxt = '—';
+  if (selectedYear != null) {
+    const prevYear = selectedYear - 1;
+    const prevSet = (geojsonData?.features || []).filter(f => {
+      const p = f.properties || {};
+      const anoOK = String(p.ano) === String(prevYear);
+      const q = getQuarter(p);
+      const triOK = (selectedQuarter == null) ? true : (q === selectedQuarter);
+
+      const codes = parseUFs(p.estado);
+      let estOK = true;
+      if (selectedEstado){
+        if (selectedEstado.includes('/')){
+          estOK = arraysEqualAsSets(codes, parseUFs(selectedEstado));
+        }else{
+          estOK = codes.includes(String(selectedEstado).toUpperCase());
+        }
+      }
+
+      const catOK = selectedCategoria  ? String(p.categoria||'') === String(selectedCategoria)  : true;
+      const modOK = selectedModalidade ? String(p.modalidade||'')=== String(selectedModalidade) : true;
+      return anoOK && triOK && estOK && catOK && modOK;
+    });
+
+    const prevCelulas = prevSet.reduce((s, f) => s + cellValue(f?.properties || {}), 0);
+    if (prevCelulas === 0 && totalCelulas === 0)      variacaoTxt = '0%';
+    else if (prevCelulas === 0)                       variacaoTxt = '+100%';
+    else {
+      const pct = ((totalCelulas - prevCelulas) / prevCelulas) * 100;
+      variacaoTxt = `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
+    }
+  }
+
+  document.getElementById('total-records').textContent    = totalCelulas.toLocaleString('pt-BR');
+  document.getElementById('total-cells').textContent      = Math.round(mediaCelulas).toLocaleString('pt-BR');
+  document.getElementById('filtered-records').textContent = totalRegistros.toLocaleString('pt-BR');
+  document.getElementById('unique-states').textContent    = variacaoTxt;
+}
+
+/* ========================
+   Menus dinâmicos
+======================== */
+function populateMenuFromSet(menuId, attrName, valuesSet, labelMapper = (v)=>v){
+  const ul = document.getElementById(menuId);
+  ul.innerHTML = '';
+  ul.insertAdjacentHTML('beforeend', `<li><a class="dropdown-item" data-${attrName}="">Todos</a></li>`);
+
+  const arr = Array.from(valuesSet);
+  arr.sort((a,b) => (labelMapper(a)||'').localeCompare(labelMapper(b)||'', 'pt-BR'));
+
+  arr.forEach(v=>{
+    const label = labelMapper(v);
+    const safeVal   = String(v).replace(/"/g,'&quot;');
+    const safeLabel = String(label).replace(/"/g,'&quot;');
+    ul.insertAdjacentHTML('beforeend', `<li><a class="dropdown-item" data-${attrName}="${safeVal}">${safeLabel}</a></li>`);
+  });
+}
+
+// === Estado: simples + combinações ===
+function populateEstadoMenu(){
+  const feats=(geojsonData?.features)||[];
+  const singleUFs = new Set();       // "AM", "PA", ...
+  const comboValues = new Map();      // "AM/RO" -> "Amazonas / Rondônia"
+
+  feats.forEach(f=>{
+    const est = f?.properties?.estado;
+    if (!est) return;
+    const codes = parseUFs(est);
+    if (!codes.length) return;
+    if (codes.length === 1){
+      singleUFs.add(codes[0]);
+    } else {
+      const key = codes.slice().sort().join('/');
+      comboValues.set(key, formatEstadoFull(key));
+      codes.forEach(c=> singleUFs.add(c));
+    }
+  });
+
+  const ul = document.getElementById('menu-estado');
+  ul.innerHTML = '';
+  ul.insertAdjacentHTML('beforeend', `<li><a class="dropdown-item" data-estado="">Todos</a></li>`);
+
+  Array.from(singleUFs)
+    .sort((a,b)=> ufCodeToName(a).localeCompare(ufCodeToName(b),'pt-BR'))
+    .forEach(code=>{
+      ul.insertAdjacentHTML('beforeend', `<li><a class="dropdown-item" data-estado="${code}">${ufCodeToName(code)}</a></li>`);
+    });
+
+  if (comboValues.size){
+    ul.insertAdjacentHTML('beforeend', `<li><hr class="dropdown-divider"></li>`);
+    const combosSorted = Array.from(comboValues.entries())
+      .sort((a,b)=> a[1].localeCompare(b[1],'pt-BR'));
+    combosSorted.forEach(([key,label])=>{
+      ul.insertAdjacentHTML('beforeend', `<li><a class="dropdown-item" data-estado="${key}">${label}</a></li>`);
+    });
+  }
+
+  const allKeys = new Set([...singleUFs, ...comboValues.keys()]);
+  if (selectedEstado && !allKeys.has(selectedEstado)){
+    selectedEstado = null;
+    document.getElementById('btn-estado').textContent = 'Estado: Todos';
+  } else if (selectedEstado){
+    const label = selectedEstado.includes('/') ? formatEstadoFull(selectedEstado) : ufCodeToName(selectedEstado);
+    document.getElementById('btn-estado').textContent = `Estado: ${label}`;
+  }
+}
+
+function populateAttributeMenus(){
+  const feats = (geojsonData?.features) || [];
+  const setCategoria = new Set(), setModalidade = new Set();
+
+  feats.forEach(f=>{
+    const p = f.properties || {};
+    if (p.categoria)  setCategoria.add(p.categoria);
+    if (p.modalidade) setModalidade.add(p.modalidade);
+  });
+
+  populateEstadoMenu();
+  populateMenuFromSet('menu-categoria','categoria', setCategoria,  mapAcronymLabel);
+  populateMenuFromSet('menu-modalidade','modalidade', setModalidade, mapAcronymLabel);
+
+  if (selectedCategoria && !setCategoria.has(selectedCategoria)){
+    selectedCategoria=null; document.getElementById('btn-categoria').textContent='Categoria: Todos';
+  }
+  if (selectedModalidade && !setModalidade.has(selectedModalidade)){
+    selectedModalidade=null; document.getElementById('btn-modalidade').textContent='Modalidade: Todos';
+  }
+}
+</script>
+<!-- Overlay de carregamento -->
+<div id="loader-overlay" aria-live="polite" aria-busy="true">
+  <div class="loader-card">
+    <div class="loader-ring" aria-hidden="true"></div>
+    <div class="loader-text">Carregando dados...</div>
+  </div>
+</div>
+
+</body>
+</html>
