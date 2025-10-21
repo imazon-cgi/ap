@@ -505,7 +505,7 @@
   let currentClass = 'ameaca';
   let currentFilter = null;     // null | 'ti' | 'uc' | 'allap'
   let ucSubtype = 'all';        // manter 'all' (UCE+UCF)
-  let selectedYear = 2023;      // null = Todos
+  let selectedYear = 2025;      // null = Todos
   let selectedQuarter = null;   // null | 1..4
   let selectedEstado = null;    // "AM" ou combo "AM/RO"
   let selectedCategoria = null, selectedModalidade = null;
@@ -549,7 +549,8 @@
   function getQuarter(p = {}) {
     const candNum = [
       p.periodo, p.Periodo, p.PERIODO, p['Período'], p['PERÍODO'],
-      p.trimestre, p.Trimestre, p.TRIMESTRE, p.trim, p.tri
+      p.trimestre, p.Trimestre, p.TRIMESTRE, p.trim, p.tri,
+      p.legend, p.Legend, p.LEGEND
     ];
     for (const v of candNum){
       const n = Number(v);
@@ -669,53 +670,76 @@
 
   // Função para construir o bloco de um ano com trimestres
   async function buildAPYearBlock(year) {
-    const details = document.createElement('details');
-    details.open = false;
-    const summary = document.createElement('summary');
-    summary.innerHTML = `<span class="year">${year}</span>`;
-    details.appendChild(summary);
+  const details = document.createElement('details');
+  details.open = false;
 
-    const formats = document.createElement('div');
-    formats.className = 'format-wrap';
-    const fTrimestral = document.createElement('div');
-    fTrimestral.className = 'format-card';
-    
-    const titleKind = AP_SELECTED_TYPE === 'geojson' ? 'GeoJSON trimestral' :
-                      AP_SELECTED_TYPE === 'csv' ? 'CSV trimestral' :
-                      'Shapefile trimestral (ZIP)';
-    fTrimestral.innerHTML = `<div class="format-title">${titleKind}</div>`;
+  const summary = document.createElement('summary');
+  summary.innerHTML = `<span class="year">${year}</span>`;
+  details.appendChild(summary);
 
-    const list = document.createElement('ul');
-    list.className = 'chiplist';
+  const formats = document.createElement('div');
+  formats.className = 'format-wrap';
 
-    // Trimestres disponíveis (1º a 4º)
-    const quarters = [1, 2, 3, 4];
-    quarters.forEach(q => {
-      const label = `${q}º Trimestre ${year}`;
-      const url = apQuarterlyUrl(year, q);
-      list.appendChild(makeChip(label, url));
-    });
+  const fTrimestral = document.createElement('div');
+  fTrimestral.className = 'format-card';
 
-    fTrimestral.appendChild(list);
-    formats.appendChild(fTrimestral);
-    details.appendChild(formats);
-    return details;
-  }
+  const titleKind = AP_SELECTED_TYPE === 'geojson' ? 'GeoJSON trimestral' :
+                    AP_SELECTED_TYPE === 'csv'    ? 'CSV trimestral'    :
+                                                     'Shapefile trimestral (ZIP)';
+  fTrimestral.innerHTML = `<div class="format-title">${titleKind}</div>`;
+
+  const list = document.createElement('ul');
+  list.className = 'chiplist';
+
+  // Trimestres disponíveis para o ANO (se geojsonData estiver carregado)
+  // Caso contrário, assume 1..4 como fallback
+  let quarters = [1,2,3,4];
+  try {
+    const qs = availableQuarters(year);
+    if (qs && qs.length) quarters = qs;
+  } catch (_) {}
+
+  quarters.forEach(q => {
+    // Pega o nome do trimestre pela coluna "período"/legenda já normalizada
+    const leg = findLegendaFor(year, q) || DEFAULT_LEGENDS[q] || `T${q}`;
+    // Rótulo do chip: usa o texto do período + ano
+    const label = `T${q} — ${leg} `;
+
+
+    const url = apQuarterlyUrl(year, q);
+    list.appendChild(makeChip(label, url));
+  });
+
+  fTrimestral.appendChild(list);
+  formats.appendChild(fTrimestral);
+  details.appendChild(formats);
+  return details;
+}
+
 
   // Função para renderizar a lista de downloads do Ameaça e Pressão
   async function renderDownloadsAP() {
-    const ul = document.getElementById('ap-downloads-list');
-    ul.innerHTML = '';
-    const curYear = new Date().getFullYear();
-    
-    // Supondo dados disponíveis de 2020 a 2023
-    for (let y = curYear; y >= 2020; y--) {
-      const blk = await buildAPYearBlock(y);
-      const li = document.createElement('li');
-      li.appendChild(blk);
-      ul.appendChild(li);
-    }
+  const ul = document.getElementById('ap-downloads-list');
+  ul.innerHTML = '';
+
+  // Ano corrente até 2020
+  const curYear = new Date().getFullYear();
+  for (let y = curYear; y >= 2020; y--) {
+    const blk = await buildAPYearBlock(y);
+    const li = document.createElement('li');
+    li.appendChild(blk);
+    ul.appendChild(li);
   }
+
+  // Se nenhum ano renderizou (improvável), mostra estado neutro
+  if (!ul.children.length) {
+    const li = document.createElement('li');
+    li.className = 'muted';
+    li.textContent = 'Nenhum download disponível.';
+    ul.appendChild(li);
+  }
+}
+
 
   // Função auxiliar para criar chips (reutilizada do SAD)
   function makeChip(label, url) {
@@ -866,6 +890,35 @@
     const BASE_GEOJSON_URL = '/dataset/AMZ_legal_amz_legal.geojson';
     const amazoniaBounds = L.latLngBounds([[-18,-75],[6,-44]]);
     let baseLayer = null;
+const AP_GEOJSON_BASE = '/dataset/ap/geojson';
+const AP_CSV_BASE     = '/dataset/ap/csv';
+const AP_SHP_BASE     = '/dataset/ap/shp';
+let   AP_SELECTED_TYPE = 'geojson';
+
+/** Períodos especiais por ano (fogem de T1..T4) */
+const AP_SPECIAL_PERIODS = {
+  2020: [
+    {
+      // rótulo que aparecerá no chip
+      label: 'agosto/2019 a julho/2020',
+
+      fileBase: 'ameaca_e_pressao_2020_categ_ti_pressao'
+    }
+  ]
+};
+
+/** Monta URL a partir de um nome-base (sem Tn) */
+function apUrlFromBase(fileBase, type = AP_SELECTED_TYPE) {
+  if (type === 'geojson') return `${AP_GEOJSON_BASE}/${fileBase}.geojson`;
+  if (type === 'csv')     return `${AP_CSV_BASE}/${fileBase}.csv`;
+  return `${AP_SHP_BASE}/${fileBase}.zip`;
+}
+
+/** Monta URL trimestral padrão (T1..T4) */
+function apQuarterlyUrl(year, quarter, type = AP_SELECTED_TYPE) {
+  const baseName = `ameaca_pressao_${year}_T${quarter}`;
+  return apUrlFromBase(baseName, type);
+}
 
     function baseStyle() {
   return {
@@ -1116,8 +1169,8 @@
       const basePath = '../dataset/ap/geojson/';
       const scope = currentFilter;
       const years = (selectedYear == null)
-        ? [2020,2021,2022,2023]
-        : [selectedYear, selectedYear - 1].filter(y => y >= 2020 && y <= 2023);
+        ? [2020,2021,2022,2023,2024,2025]
+        : [selectedYear, selectedYear - 1].filter(y => y >= 2020 && y <= 2025);
 
       const allTargets = years.flatMap(y => targetsFor(scope, currentClass, y, ucSubtype)).filter(Boolean);
       const results = await Promise.all(allTargets.map(f => safeFetch(basePath + f)));
@@ -1548,14 +1601,14 @@
      Filtros (estáticos + dinâmicos)
   ======================== */
   function populateFilterOptions() {
-    const years = [2023, 2022, 2021, 2020];
+    const years = [2025,2024,2023, 2022, 2021, 2020];
     const yearSelect = document.getElementById('yearFilter');
     yearSelect.innerHTML = '<option value="all">Todos os Anos</option>';
     years.forEach(year => {
       const option = document.createElement('option');
       option.value = year;
       option.textContent = year;
-      if (year === 2023) option.selected = true;
+      if (year === 2025) option.selected = true;
       yearSelect.appendChild(option);
     });
 
