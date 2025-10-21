@@ -126,7 +126,7 @@
       min-width: 300px;
       border: 2px solid #008055;
     }
-    
+
     .popup-overlay {
       position: fixed;
       top: 0;
@@ -136,7 +136,7 @@
       background: rgba(0,0,0,0.5);
       z-index: 9999;
     }
-    
+
     .popup-close {
       position: absolute;
       top: 10px;
@@ -781,7 +781,7 @@
   function showNoDataPopup() {
     const overlay = document.createElement('div');
     overlay.className = 'popup-overlay';
-    
+
     const popup = document.createElement('div');
     popup.className = 'custom-popup';
     popup.innerHTML = `
@@ -792,16 +792,16 @@
         OK
       </button>
     `;
-    
+
     overlay.appendChild(popup);
     document.body.appendChild(overlay);
-    
+
     const closeBtn = popup.querySelector('.popup-close');
     const okBtn = popup.querySelector('.btn');
     const closePopup = () => {
       document.body.removeChild(overlay);
     };
-    
+
     closeBtn.addEventListener('click', closePopup);
     okBtn.addEventListener('click', closePopup);
     overlay.addEventListener('click', (e) => {
@@ -897,7 +897,7 @@
       subdomains: 'abcd', maxZoom: 20, crossOrigin: true
     }).addTo(map);
 
-    const BASE_GEOJSON_URL = '/dataset/AMZ_legal_amz_legal.geojson';
+    const BASE_GEOJSON_URL = 'dataset/AMZ_legal_amz_legal.geojson';
     const amazoniaBounds = L.latLngBounds([[-18,-75],[6,-44]]);
     let baseLayer = null;
 
@@ -1129,7 +1129,7 @@
       setTitles();
 
       if (selectedEstado === 'TO') {
-        const basePath = '../dataset/ap/geojson/';
+        const basePath = 'ap/dataset/ap/geojson/';
         const scope = currentFilter;
         const years = (selectedYear == null)
           ? [2020,2021,2022,2023,2024,2025]
@@ -1151,7 +1151,7 @@
           return;
         }
       } else {
-        const basePath = '../dataset/ap/geojson/';
+        const basePath = 'dataset/ap/geojson/';
         const scope = currentFilter;
         const years = (selectedYear == null)
           ? [2020,2021,2022,2023,2024,2025]
