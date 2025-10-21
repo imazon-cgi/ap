@@ -716,7 +716,7 @@
     const fTrimestral = document.createElement('div');
     fTrimestral.className = 'format-card';
 
-    const titleKind = AP_SELECTED_TYPE === 'geojson' ? 'GeoJSON trimestral' :
+    const titleKind = AP_SELECTED_TYPE === 'geojson' ? '' :
                       AP_SELECTED_TYPE === 'csv'    ? 'CSV trimestral'    :
                                                        'Shapefile trimestral (ZIP)';
     fTrimestral.innerHTML = `<div class="format-title">${titleKind}</div>`;
@@ -1056,7 +1056,6 @@
   function showLoader(msg="Carregando dados..."){
     const l=document.getElementById('loader-overlay'); if(!l) return;
     const t=l.querySelector('.loader-text'); if(t) t.textContent=msg;
-    l.style.display='exp';
     l.style.display='flex';
   }
   function hideLoader(){
@@ -1608,12 +1607,13 @@
     quarterSelect.innerHTML = '<option value="all">Todos os Trimestres</option>';
 
     if (year !== 'all' && geojsonData) {
-      const quarters = availableQuarters(parseInt(year));
+      const y = parseInt(year);
+      const quarters = availableQuarters(y);
       quarters.forEach(q => {
         const option = document.createElement('option');
         option.value = q;
-        const legenda = findLegendaFor(parseInt(year), q) || `T${q}`;
-        option.textContent = legenda;
+        const legenda = findLegendaFor(y, q) || `T${q}`;
+        option.textContent = `T${q} — ${legenda}`;
         quarterSelect.appendChild(option);
       });
     }
