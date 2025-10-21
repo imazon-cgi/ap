@@ -111,6 +111,43 @@
 
     .downloads-card.collapsed .card-body{display:none}
 
+    /* Pop-up customizado */
+    .custom-popup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      z-index: 10000;
+      text-align: center;
+      min-width: 300px;
+      border: 2px solid #008055;
+    }
+    
+    .popup-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 9999;
+    }
+    
+    .popup-close {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #666;
+    }
+
     @media(max-width:576px){
       .filter-container{grid-template-columns:repeat(2,1fr)}
       .span-3,.span-2,.span-4,.span-1{grid-column:span 2}
@@ -356,24 +393,18 @@
   // ========================
   // CONFIG – Bases de download na AWS
   // ========================
-  // Troque pelo seu domínio CloudFront ou endpoint S3 (sem barra no final)
   const AP_DOWNLOAD_BASE = "https://imazongeo3-web.s3.sa-east-1.amazonaws.com";
   const AP_PREFIX = "/ameaca_e_pressao";
-
-  // Permite override em runtime (opcional):
-  // window.__AP_DOWNLOAD_BASE = "https://..."; window.__AP_PREFIX="/dataset/ap";
   function getApBase() {
     const base = (window.__AP_DOWNLOAD_BASE || AP_DOWNLOAD_BASE || "").replace(/\/+$/,"");
     const pref = (window.__AP_PREFIX || AP_PREFIX || "").replace(/\/+$/,"");
     return { base, pref: pref ? (pref.startsWith("/") ? pref : `/${pref}`) : "" };
   }
   function apTypeBase(type) {
-  const { base, pref } = getApBase();
-  // csv -> "csv", shp -> "shapefile", geojson -> "geojson"
-  const t = (type === "csv") ? "csv" : (type === "shp" ? "shapefile" : "geojson");
-  return `${base}${pref}/${t}`;
-}
-
+    const { base, pref } = getApBase();
+    const t = (type === "csv") ? "csv" : (type === "shp" ? "shapefile" : "geojson");
+    return `${base}${pref}/${t}`;
+  }
   function apUrlFromBase(fileBase, type = AP_SELECTED_TYPE) {
     return `${apTypeBase(type)}/${fileBase}.${type === "shp" ? "zip" : type}`;
   }
@@ -381,10 +412,6 @@
     const baseName = `ameaca_pressao_${year}_T${quarter}`;
     return apUrlFromBase(baseName, type);
   }
-
-  // ========================
-  // CÓDIGO JAVASCRIPT - FILTROS PADRONIZADOS + LÓGICA ORIGINAL
-  // ========================
 
   /* ========================
      Utilidades gerais
@@ -675,7 +702,6 @@
   ======================== */
   let AP_SELECTED_TYPE = 'geojson';
 
-  // Bloco por ano com chips trimestrais
   async function buildAPYearBlock(year) {
     const details = document.createElement('details');
     details.open = false;
@@ -698,8 +724,6 @@
     const list = document.createElement('ul');
     list.className = 'chiplist';
 
-    // Pegamos trimestres disponíveis a partir do que está carregado no dashboard;
-    // se vazio, mostramos T1..T4 como fallback (mantém comportamento anterior).
     let quarters = [1,2,3,4];
     try {
       const qs = availableQuarters(year);
@@ -752,6 +776,40 @@
   }
 
   /* ========================
+     Pop-up sem dados
+  ======================== */
+  function showNoDataPopup() {
+    const overlay = document.createElement('div');
+    overlay.className = 'popup-overlay';
+    
+    const popup = document.createElement('div');
+    popup.className = 'custom-popup';
+    popup.innerHTML = `
+      <button class="popup-close">&times;</button>
+      <h4 style="color: #c62828; margin-bottom: 1rem;">Aviso</h4>
+      <p>NÃO HÁ INFORMAÇÕES PARA A OPÇÃO SELECIONADA</p>
+      <button class="btn btn-primary mt-3" style="background: #008055; border: none;">
+        OK
+      </button>
+    `;
+    
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+    
+    const closeBtn = popup.querySelector('.popup-close');
+    const okBtn = popup.querySelector('.btn');
+    const closePopup = () => {
+      document.body.removeChild(overlay);
+    };
+    
+    closeBtn.addEventListener('click', closePopup);
+    okBtn.addEventListener('click', closePopup);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closePopup();
+    });
+  }
+
+  /* ========================
      UI (anos/títulos/menus)
   ======================== */
   function filename(scope, cls, year, ucSub=''){
@@ -799,7 +857,7 @@
   }
 
   /* ========================
-     Mostra/oculta controles de UC
+     Controles UC
   ======================== */
   function updateAttributeControlsVisibility(){
     const categoryWrapper = document.getElementById('categoryFilterWrapper');
@@ -822,26 +880,23 @@
   }
 
   /* ========================
-     Mapa (fundo igual ao SAD)
+     Mapa
   ======================== */
   function initializeMap(){
     if (map) { try{ map.off(); map.remove(); }catch(e){} }
     map = L.map('map', { zoomControl: true });
 
-    // Pane para base (atrás dos dados)
     if (!map.getPane('amzBase')){
       map.createPane('amzBase');
       map.getPane('amzBase').style.zIndex = 350;
       map.getPane('amzBase').style.pointerEvents = 'none';
     }
 
-    // Basemap Carto Light (SAD)
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
       subdomains: 'abcd', maxZoom: 20, crossOrigin: true
     }).addTo(map);
 
-    // Camada fixa da Amazônia Legal
     const BASE_GEOJSON_URL = '/dataset/AMZ_legal_amz_legal.geojson';
     const amazoniaBounds = L.latLngBounds([[-18,-75],[6,-44]]);
     let baseLayer = null;
@@ -1073,16 +1128,39 @@
     try {
       setTitles();
 
-      // Fonte dos dados do dashboard (permanece local/servidor interno)
-      const basePath = '../dataset/ap/geojson/';
-      const scope = currentFilter;
-      const years = (selectedYear == null)
-        ? [2020,2021,2022,2023,2024,2025]
-        : [selectedYear, selectedYear - 1].filter(y => y >= 2020 && y <= 2025);
+      if (selectedEstado === 'TO') {
+        const basePath = '../dataset/ap/geojson/';
+        const scope = currentFilter;
+        const years = (selectedYear == null)
+          ? [2020,2021,2022,2023,2024,2025]
+          : [selectedYear, selectedYear - 1].filter(y => y >= 2020 && y <= 2025);
 
-      const allTargets = years.flatMap(y => targetsFor(scope, currentClass, y, ucSubtype)).filter(Boolean);
-      const results = await Promise.all(allTargets.map(f => safeFetch(basePath + f)));
-      geojsonData = mergeCollections(results.filter(Boolean));
+        const allTargets = years.flatMap(y => targetsFor(scope, currentClass, y, ucSubtype)).filter(Boolean);
+        const results = await Promise.all(allTargets.map(f => safeFetch(basePath + f)));
+        geojsonData = mergeCollections(results.filter(Boolean));
+
+        const hasDataForTO = geojsonData.features?.some(f => {
+          const props = f.properties || {};
+          const estados = parseUFs(props.estado);
+          return estados.includes('TO');
+        });
+
+        if (!hasDataForTO) {
+          hideLoader();
+          showNoDataPopup();
+          return;
+        }
+      } else {
+        const basePath = '../dataset/ap/geojson/';
+        const scope = currentFilter;
+        const years = (selectedYear == null)
+          ? [2020,2021,2022,2023,2024,2025]
+          : [selectedYear, selectedYear - 1].filter(y => y >= 2020 && y <= 2025);
+
+        const allTargets = years.flatMap(y => targetsFor(scope, currentClass, y, ucSubtype)).filter(Boolean);
+        const results = await Promise.all(allTargets.map(f => safeFetch(basePath + f)));
+        geojsonData = mergeCollections(results.filter(Boolean));
+      }
 
       // Menus dinâmicos + trimestre
       populateDynamicMenus();
@@ -1490,6 +1568,7 @@
       yearSelect.appendChild(option);
     });
 
+    // Inicial: todos os estados (será refinado dinamicamente depois)
     const estados = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
     const stateSelect = document.getElementById('stateFilter');
     stateSelect.innerHTML = '<option value="all">Amazônia Legal</option>';
@@ -1543,26 +1622,32 @@
   function populateDynamicMenus() {
     const feats = (geojsonData?.features) || [];
 
-    // Estados
+    // Estados dinâmicos a partir dos dados
     const estadosSet = new Set();
     feats.forEach(f => {
       const estado = f.properties?.estado;
       if (estado) parseUFs(estado).forEach(code => estadosSet.add(code));
     });
+
+    // >>> Garantir TO na lista (mesmo sem dados) <<<
+    estadosSet.add('TO');
+
     const stateSelect = document.getElementById('stateFilter');
-    const currentState = stateSelect.value;
+    const currentState = stateSelect.value; // pode ser 'all' ou uma sigla
+
     stateSelect.innerHTML = '<option value="all">Amazônia Legal</option>';
+
     Array.from(estadosSet)
       .sort((a, b) => ufCodeToName(a).localeCompare(ufCodeToName(b)))
       .forEach(estado => {
         const option = document.createElement('option');
         option.value = estado;
-        option.textContent = ufCodeToName(estado);
+        option.textContent = ufCodeToName(estado); // nome completo
         if (estado === currentState) option.selected = true;
         stateSelect.appendChild(option);
       });
 
-    // Categorias
+    // Categorias dinâmicas
     const categoriasSet = new Set();
     feats.forEach(f => {
       const categoria = f.properties?.categoria;
@@ -1579,7 +1664,7 @@
       categorySelect.appendChild(option);
     });
 
-    // Modalidades
+    // Modalidades dinâmicas
     const modalidadesSet = new Set();
     feats.forEach(f => {
       const modalidade = f.properties?.modalidade;
