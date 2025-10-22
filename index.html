@@ -355,10 +355,10 @@
           <button class="typebtn active" data-type="geojson" role="tab" aria-selected="true" title="Trimestral">
             <i class="fa-regular fa-map"></i> GeoJSON
           </button>
-          <button class="typebtn" data-type="csv" role="tab" aria-selected="false" title="CSV trimestral">
+          <button class="typebtn" data-type="csv" role="tab" aria-selected="false" title="">
             <i class="fa-regular fa-file-lines"></i> CSV
           </button>
-          <button class="typebtn" data-type="shp" role="tab" aria-selected="false" title="Shapefile trimestral (ZIP)">
+          <button class="typebtn" data-type="shp" role="tab" aria-selected="false" title="">
             <i class="fa-regular fa-file-zipper"></i> Shapefile
           </button>
         </div>
@@ -611,6 +611,26 @@
     1: 'janeiro a março', 2: 'abril a junho',
     3: 'julho a setembro', 4: 'outubro a dezembro'
   };
+
+  // --- Fallbacks de trimestre/legenda quando geojsonData ainda não estiver disponível ---
+  function quartersForDownloads(year){
+    const qs = availableQuarters(year);
+    if (qs && qs.length) return qs;        // temos dados -> usa o real
+    // Regras especiais por ano
+    if (Number(year) === 2020) return [1];
+    if (Number(year) === 2021) return [1, 2];
+    return [1,2,3,4];                      // fallback genérico para outros anos
+  }
+  function legendForDownloads(year, q){
+    const leg = findLegendaFor(year, q);
+    if (leg) return leg; // conseguimos achar pelos dados carregados
+    // Legendas especiais para anos específicos
+    if (Number(year) === 2020 && Number(q) === 1) return 'agosto/2019 a julho/2020';
+    if (Number(year) === 2021 && Number(q) === 1) return 'fevereiro a abril';
+    if (Number(year) === 2021 && Number(q) === 2) return 'agosto a outubro';
+    return DEFAULT_LEGENDS[q] || `T${q}`;
+  }
+
   function periodLabel(p = {}) {
     const q = getQuarter(p);
     const legRaw = getLegenda(p) || (q ? DEFAULT_LEGENDS[q] : null);
@@ -620,6 +640,10 @@
     return leg || '-';
   }
   function availableQuarters(year){
+    // Regras especiais por ano
+    if (Number(year) === 2020) return [1];
+    if (Number(year) === 2021) return [1, 2];
+    
     const feats = (geojsonData?.features) || [];
     const set = new Set();
     for (const f of feats){
@@ -632,6 +656,11 @@
   }
   function findLegendaFor(year, quarter){
     if (quarter == null) return null;
+    // Legendas especiais para anos específicos
+    if (Number(year) === 2020 && Number(quarter) === 1) return 'agosto/2019 a julho/2020';
+    if (Number(year) === 2021 && Number(quarter) === 1) return 'fevereiro a abril';
+    if (Number(year) === 2021 && Number(quarter) === 2) return 'agosto a outubro';
+    
     const feats = (geojsonData?.features) || [];
     const hits = feats.filter(f=>{
       const p = f.properties || {};
@@ -724,16 +753,13 @@
     const list = document.createElement('ul');
     list.className = 'chiplist';
 
-    let quarters = [1,2,3,4];
-    try {
-      const qs = availableQuarters(year);
-      if (qs && qs.length) quarters = qs;
-    } catch (_) {}
+    // >>> NOVO: usa os trimestres reais ou o fallback inteligente
+    const quarters = quartersForDownloads(year);
 
     quarters.forEach(q => {
-      const leg = findLegendaFor(year, q) || DEFAULT_LEGENDS[q] || `T${q}`;
-      const label = `T${q} — ${leg} `;
-      const url = apQuarterlyUrl(year, q);
+      const leg   = legendForDownloads(year, q);
+      const label = `T${q} — ${leg}`;
+      const url   = apQuarterlyUrl(year, q);
       list.appendChild(makeChip(label, url));
     });
 
@@ -897,7 +923,7 @@
       subdomains: 'abcd', maxZoom: 20, crossOrigin: true
     }).addTo(map);
 
-    const BASE_GEOJSON_URL = 'dataset/AMZ_legal_amz_legal.geojson';
+    const BASE_GEOJSON_URL = '/dataset/AMZ_legal_amz_legal.geojson';
     const amazoniaBounds = L.latLngBounds([[-18,-75],[6,-44]]);
     let baseLayer = null;
 
@@ -1128,7 +1154,7 @@
       setTitles();
 
       if (selectedEstado === 'TO') {
-        const basePath = 'ap/dataset/ap/geojson/';
+        const basePath = '/dataset/ap/geojson/';
         const scope = currentFilter;
         const years = (selectedYear == null)
           ? [2020,2021,2022,2023,2024,2025]
@@ -1150,7 +1176,7 @@
           return;
         }
       } else {
-        const basePath = 'dataset/ap/geojson/';
+        const basePath = '/dataset/ap/geojson/';
         const scope = currentFilter;
         const years = (selectedYear == null)
           ? [2020,2021,2022,2023,2024,2025]
@@ -1721,9 +1747,6 @@
       await renderDownloadsAP();
     });
   });
-
-  // Inicializa filtros default caso DOMContentLoaded atrase
-  populateFilterOptions();
   </script>
 </body>
 </html>
