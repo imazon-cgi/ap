@@ -36,7 +36,7 @@
     .filter-section{background:var(--card-color);padding:1.5rem;border-radius:var(--border-radius);box-shadow:var(--box-shadow);margin-bottom:2rem}
     .filter-container{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;align-items:end}
     .filter-item{display:flex;flex-direction:column;gap:6px}
-    .span-3{grid-column:span 3}.span-2{grid-column:span 2}.span-4{grid-column:span 4}.span-1{grid-column:span 1}
+    .span-2{grid-column:span 2}
     .form-select,.form-control{height:42px;border-radius:8px;border:1px solid #ddd}
     .btn-primary{height:42px;background:var(--primary-color);border-color:var(--primary-color);border-radius:8px;font-weight:600}
     .btn-primary:hover{background:var(--primary-dark);border-color:var(--primary-dark)}
@@ -111,6 +111,45 @@
 
     .downloads-card.collapsed .card-body{display:none}
 
+    .filter-container {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 8px;
+      align-items: end;
+    }
+
+    .filter-row-middle {
+      grid-column: 1 / -1;
+      display: none;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 8px;
+      align-items: end;
+      margin-top: 8px;
+      padding-top: 8px;
+      
+    }
+
+    /* Quando UC está selecionado, mostra a linha do meio */
+    .filter-container.uc-selected .filter-row-middle {
+      display: grid;
+    }
+
+    /* Esconde os filtros de UC por padrão */
+    #ucFiltersGroup {
+      display: none;
+    }
+
+    /* Mostra os filtros de UC quando UC está selecionado */
+    .filter-container.uc-selected #ucFiltersGroup {
+      display: contents;
+    }
+
+    /* Esconde Ano e Trimestre quando UC está selecionado (eles vão para a linha do meio) */
+    .filter-container.uc-selected #yearFilterWrapper,
+    .filter-container.uc-selected #quarterFilterWrapper {
+      display: none;
+    }
+
     /* Pop-up customizado */
     .custom-popup {
       position: fixed;
@@ -150,7 +189,10 @@
 
     @media(max-width:576px){
       .filter-container{grid-template-columns:repeat(2,1fr)}
-      .span-3,.span-2,.span-4,.span-1{grid-column:span 2}
+      .span-2{grid-column:span 2}
+      .filter-row-middle {
+        grid-template-columns: repeat(2, 1fr);
+      }
     }
   </style>
 </head>
@@ -168,9 +210,10 @@
       <img src="../../img/ameaca_e_pressao.png" alt="Logo Ameaça e Pressão" style="max-width:150px;height:auto;display:block;margin:0 auto">
     </div>
 
-    <!-- Filtros -->
+    <!-- Filtros - ESTRUTURA CORRIGIDA -->
     <div class="filter-section">
       <div class="filter-container">
+        <!-- Ameaça e Pressão -->
         <div class="filter-item span-2">
           <label class="form-label fw-bold" for="typeFilter">Ameaça e Pressão</label>
           <select id="typeFilter" class="form-select">
@@ -188,7 +231,7 @@
           </select>
         </div>
 
-        <!-- Área -->
+        <!-- Modalidade Territorial -->
         <div class="filter-item span-2">
           <label class="form-label fw-semibold" for="areaFilter">Modalidade Territorial</label>
           <select id="areaFilter" class="form-select">
@@ -198,46 +241,74 @@
           </select>
         </div>
 
-        <!-- Ano -->
-        <div class="filter-item span-2">
+        <!-- Filtros específicos para UC - Agrupados -->
+        <div id="ucFiltersGroup">
+          <!-- Jurisdição vai no lugar do ANO -->
+          <div class="filter-item span-2">
+            <label class="form-label fw-semibold" for="jurisdictionFilter">Jurisdição</label>
+            <select id="jurisdictionFilter" class="form-select">
+              <option value="all">Todas</option>
+              <option value="Federal">Federal</option>
+              <option value="Estadual">Estadual</option>
+            </select>
+          </div>
+
+          <!-- Categoria vai no lugar do TRIMESTRE -->
+          <div class="filter-item span-2">
+            <label class="form-label fw-semibold" for="categoryFilter">Categoria</label>
+            <select id="categoryFilter" class="form-select">
+              <option value="all">Todos</option>
+            </select>
+          </div>
+
+          <!-- Tipo de Uso (adicional) -->
+          <div class="filter-item span-2">
+            <label class="form-label fw-semibold" for="usoFilter">Tipo de Uso</label>
+            <select id="usoFilter" class="form-select">
+              <option value="all">Todos</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Ano (normalmente visível, exceto quando UC está selecionado) -->
+        <div class="filter-item span-2" id="yearFilterWrapper">
           <label class="form-label fw-semibold" for="yearFilter">Ano</label>
           <select id="yearFilter" class="form-select">
             <option value="all">Todos os Anos</option>
           </select>
         </div>
 
-        <!-- Trimestre -->
-        <div class="filter-item span-2">
+        <!-- Trimestre (normalmente visível, exceto quando UC está selecionado) -->
+        <div class="filter-item span-2" id="quarterFilterWrapper">
           <label class="form-label fw-semibold" for="quarterFilter">Trimestre</label>
           <select id="quarterFilter" class="form-select">
             <option value="all">Todos os Trimestres</option>
           </select>
         </div>
 
-        <!-- Categoria (UC) -->
-        <div class="filter-item span-2" id="categoryFilterWrapper" style="display:none">
-          <label class="form-label fw-semibold" for="categoryFilter">Categoria</label>
-          <select id="categoryFilter" class="form-select">
-            <option value="all">Todos</option>
-          </select>
-        </div>
+        <!-- Linha do meio que aparece apenas quando UC está selecionado -->
+        <div class="filter-row-middle">
+          <!-- Ano vai para a linha do meio quando UC está selecionado -->
+          <div class="filter-item span-2">
+            <label class="form-label fw-semibold" for="yearFilterMiddle">Ano</label>
+            <select id="yearFilterMiddle" class="form-select">
+              <option value="all">Todos os Anos</option>
+            </select>
+          </div>
 
-        <!-- Modalidade (UC) -->
-        <div class="filter-item span-2" id="modalityFilterWrapper" style="display:none">
-          <label class="form-label fw-semibold" for="modalityFilter">Tipos de Uso</label>
-          <select id="modalityFilter" class="form-select">
-            <option value="all">Todos</option>
-          </select>
-        </div>
+          <!-- Trimestre vai para a linha do meio quando UC está selecionado -->
+          <div class="filter-item span-2">
+            <label class="form-label fw-semibold" for="quarterFilterMiddle">Trimestre</label>
+            <select id="quarterFilterMiddle" class="form-select">
+              <option value="all">Todos os Trimestres</option>
+            </select>
+          </div>
 
-        <!-- Jurisdição (UC) -->
-        <div class="filter-item span-2" id="jurisdictionFilterWrapper" style="display:none">
-          <label class="form-label fw-semibold" for="jurisdictionFilter">Jurisdição</label>
-          <select id="jurisdictionFilter" class="form-select">
-            <option value="all">Todas</option>
-            <option value="Federal">Federal</option>
-            <option value="Estadual">Estadual</option>
-          </select>
+          <!-- Espaços vazios para completar a linha -->
+          <div class="filter-item span-2"></div>
+          <div class="filter-item span-2"></div>
+          <div class="filter-item span-2"></div>
+          <div class="filter-item span-2"></div>
         </div>
 
         <!-- Botões -->
@@ -256,6 +327,7 @@
       </div>
     </div>
 
+    <!-- Resto do código permanece igual -->
     <!-- Estatísticas -->
     <div class="row mb-4">
       <div class="col-md-3"><div class="stat-card"><div class="stat-label">Total de Células com Desmatamento</div><div class="stat-value" id="total-records">0</div></div></div>
@@ -557,7 +629,7 @@
   let selectedYear = 2025;      // null = Todos
   let selectedQuarter = null;   // null | 1..4
   let selectedEstado = null;    // "AM" ou combo "AM/RO"
-  let selectedCategoria = null, selectedModalidade = null;
+  let selectedCategoria = null, selectedUso = null;
 
   let featureLayerIndex = new Map();
   let barItems = [];
@@ -614,16 +686,36 @@
 
   // --- Fallbacks de trimestre/legenda quando geojsonData ainda não estiver disponível ---
   function quartersForDownloads(year){
-    const qs = availableQuarters(year);
-    if (qs && qs.length) return qs;        // temos dados -> usa o real
-    // Regras especiais por ano
+    // Se temos dados, usa os trimestres reais
+    if (geojsonData && geojsonData.features && geojsonData.features.length > 0) {
+      const feats = geojsonData.features;
+      const set = new Set();
+      for (const f of feats){
+        const p = f.properties || {};
+        const yOK = (year == null) ? true : String(getYear(p)) === String(year);
+        const q   = getQuarter(p);
+        if (yOK && q) set.add(q);
+      }
+      const quarters = Array.from(set).sort((a,b)=>a-b);
+      if (quarters.length > 0) return quarters;
+    }
+    
+    // Fallback: regras especiais por ano
     if (Number(year) === 2020) return [1];
     if (Number(year) === 2021) return [1, 2];
-    return [1,2,3,4];                      // fallback genérico para outros anos
+    if (Number(year) === 2022) return [1, 2, 3, 4];
+    if (Number(year) === 2023) return [1, 2, 3, 4];
+    if (Number(year) === 2024) return [1, 2, 3, 4];
+    if (Number(year) === 2025) return [1, 2, 3, 4];
+    return [1,2,3,4]; // fallback genérico para outros anos
   }
   function legendForDownloads(year, q){
-    const leg = findLegendaFor(year, q);
-    if (leg) return leg; // conseguimos achar pelos dados carregados
+    // Se temos dados, tenta encontrar a legenda real
+    if (geojsonData && geojsonData.features && geojsonData.features.length > 0) {
+      const leg = findLegendaFor(year, q);
+      if (leg) return leg;
+    }
+    
     // Legendas especiais para anos específicos
     if (Number(year) === 2020 && Number(q) === 1) return 'agosto/2019 a julho/2020';
     if (Number(year) === 2021 && Number(q) === 1) return 'fevereiro a abril';
@@ -727,67 +819,147 @@
   }
 
   /* ========================
-     Downloads - Ameaça e Pressão (padrão SAD) → AWS
+     Downloads - Ameaça e Pressão (padrão SAD) → AWS - CORRIGIDO
   ======================== */
-  let AP_SELECTED_TYPE = 'geojson';
+let AP_SELECTED_TYPE = 'geojson';
 
-  async function buildAPYearBlock(year) {
-    const details = document.createElement('details');
-    details.open = false;
+// Função corrigida para gerar URLs no formato correto
+function apQuarterlyUrl(year, quarter, type = AP_SELECTED_TYPE) {
+  // Formato: ameaca_e_pressao_1_trimestre_2020
+  const baseName = `ameaca_e_pressao_${quarter}_trimestre_${year}`;
+  return apUrlFromBase(baseName, type);
+}
 
-    const summary = document.createElement('summary');
-    summary.innerHTML = `<span class="year">${year}</span>`;
-    details.appendChild(summary);
+// Função auxiliar corrigida
+function apUrlFromBase(fileBase, type = AP_SELECTED_TYPE) {
+  return `${apTypeBase(type)}/${fileBase}.${type === 'shp' ? 'zip' : type}`;
+}
 
-    const formats = document.createElement('div');
-    formats.className = 'format-wrap';
+// Função para obter base do tipo corrigida
+function apTypeBase(type) {
+  const { base, pref } = getApBase();
+  // Mapeamento correto dos tipos para pastas
+  const folderMap = {
+    'geojson': 'geojson',
+    'csv': 'csv', 
+    'shp': 'shapefile'
+  };
+  const folder = folderMap[type] || 'geojson';
+  return `${base}${pref}/${folder}`;
+}
 
-    const fTrimestral = document.createElement('div');
-    fTrimestral.className = 'format-card';
+// Função para construir blocos de ano - CORRIGIDA
+async function buildAPYearBlock(year) {
+  const details = document.createElement('details');
+  details.open = false;
 
-    const titleKind = AP_SELECTED_TYPE === 'geojson' ? '' :
-                      AP_SELECTED_TYPE === 'csv'    ? 'CSV trimestral'    :
-                                                       'Shapefile trimestral (ZIP)';
-    fTrimestral.innerHTML = `<div class="format-title">${titleKind}</div>`;
+  const summary = document.createElement('summary');
+  summary.innerHTML = `<span class="year">${year}</span>`;
+  details.appendChild(summary);
 
-    const list = document.createElement('ul');
-    list.className = 'chiplist';
+  const formats = document.createElement('div');
+  formats.className = 'format-wrap';
 
-    // >>> NOVO: usa os trimestres reais ou o fallback inteligente
-    const quarters = quartersForDownloads(year);
+  const fTrimestral = document.createElement('div');
+  fTrimestral.className = 'format-card';
 
-    quarters.forEach(q => {
-      const leg   = legendForDownloads(year, q);
-      const label = `T${q} — ${leg}`;
-      const url   = apQuarterlyUrl(year, q);
-      list.appendChild(makeChip(label, url));
-    });
+  // Títulos corrigidos por tipo
+  const titleMap = {
+    'geojson': 'GeoJSON trimestral',
+    'csv': 'CSV trimestral', 
+    'shp': 'Shapefile trimestral (ZIP)'
+  };
+  const titleKind = titleMap[AP_SELECTED_TYPE] || 'Arquivos trimestrais';
+  
+  fTrimestral.innerHTML = `<div class="format-title">${titleKind}</div>`;
 
-    fTrimestral.appendChild(list);
-    formats.appendChild(fTrimestral);
-    details.appendChild(formats);
-    return details;
-  }
+  const list = document.createElement('ul');
+  list.className = 'chiplist';
 
-  async function renderDownloadsAP() {
-    const ul = document.getElementById('ap-downloads-list');
+  // Usa trimestres reais ou fallback inteligente
+  const quarters = quartersForDownloads(year);
+
+  quarters.forEach(q => {
+    const leg = legendForDownloads(year, q);
+    const label = `T${q} — ${leg}`;
+    const url = apQuarterlyUrl(year, q);
+    
+    // Verifica se o arquivo existe antes de adicionar
+    list.appendChild(makeChip(label, url));
+  });
+
+  fTrimestral.appendChild(list);
+  formats.appendChild(fTrimestral);
+  details.appendChild(formats);
+  return details;
+}
+
+// Função para renderizar downloads - CORRIGIDA
+async function renderDownloadsAP() {
+  const ul = document.getElementById('ap-downloads-list');
+  ul.innerHTML = '<li class="muted">Carregando anos disponíveis...</li>';
+
+  try {
+    // Limpa o loading
     ul.innerHTML = '';
 
     const curYear = new Date().getFullYear();
+    const years = [];
+    
+    // Gera lista de anos de 2020 até o atual
     for (let y = curYear; y >= 2020; y--) {
+      years.push(y);
+    }
+
+    // Renderiza cada ano
+    for (let y of years) {
       const blk = await buildAPYearBlock(y);
       const li = document.createElement('li');
       li.appendChild(blk);
       ul.appendChild(li);
     }
 
+    // Mensagem se não houver downloads
     if (!ul.children.length) {
       const li = document.createElement('li');
       li.className = 'muted';
-      li.textContent = 'Nenhum download disponível.';
+      li.textContent = 'Nenhum download disponível para os filtros atuais.';
       ul.appendChild(li);
     }
+  } catch (error) {
+    console.error('Erro ao renderizar downloads:', error);
+    ul.innerHTML = '<li class="muted">Erro ao carregar downloads.</li>';
   }
+}
+
+// Função para criar chips de download
+function makeChip(label, url) {
+  const li = document.createElement('li');
+  const a = document.createElement('a');
+  a.className = 'chiplink';
+  a.textContent = label;
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  
+  // Adiciona verificação de existência do arquivo
+  a.addEventListener('click', async (e) => {
+    // Opcional: verificar se o arquivo existe antes de permitir download
+    // try {
+    //   const response = await fetch(url, { method: 'HEAD' });
+    //   if (!response.ok) {
+    //     e.preventDefault();
+    //     alert('Arquivo não disponível no momento.');
+    //   }
+    // } catch (err) {
+    //   e.preventDefault();
+    //   alert('Erro ao verificar disponibilidade do arquivo.');
+    // }
+  });
+  
+  li.appendChild(a);
+  return li;
+}
 
   function makeChip(label, url) {
     const li = document.createElement('li');
@@ -883,25 +1055,37 @@
   }
 
   /* ========================
-     Controles UC
+     Controles UC - ATUALIZADA
   ======================== */
-  function updateAttributeControlsVisibility(){
-    const categoryWrapper = document.getElementById('categoryFilterWrapper');
-    const modalityWrapper = document.getElementById('modalityFilterWrapper');
-    const jurisdictionWrapper = document.getElementById('jurisdictionFilterWrapper');
-
+  function updateAttributeControlsVisibility() {
+    const filterContainer = document.querySelector('.filter-container');
     const show = currentFilter === 'uc';
-    if (categoryWrapper) categoryWrapper.style.display = show ? '' : 'none';
-    if (modalityWrapper) modalityWrapper.style.display = show ? '' : 'none';
-    if (jurisdictionWrapper) jurisdictionWrapper.style.display = show ? '' : 'none';
+    
+    if (filterContainer) {
+      filterContainer.classList.toggle('uc-selected', show);
+    }
 
-    if (!show){
+    // Sincronizar os selects de Ano e Trimestre entre as duas posições
+    if (show) {
+      const yearValue = document.getElementById('yearFilter').value;
+      const quarterValue = document.getElementById('quarterFilter').value;
+      document.getElementById('yearFilterMiddle').value = yearValue;
+      document.getElementById('quarterFilterMiddle').value = quarterValue;
+    } else {
+      const yearValue = document.getElementById('yearFilterMiddle').value;
+      const quarterValue = document.getElementById('quarterFilterMiddle').value;
+      document.getElementById('yearFilter').value = yearValue;
+      document.getElementById('quarterFilter').value = quarterValue;
+      
       selectedCategoria = null;
-      selectedModalidade = null;
+      selectedUso = null;
       ucSubtype = 'all';
-      document.getElementById('categoryFilter').value = 'all';
-      document.getElementById('modalityFilter').value = 'all';
-      document.getElementById('jurisdictionFilter').value = 'all';
+      if (document.getElementById('categoryFilter')) 
+        document.getElementById('categoryFilter').value = 'all';
+      if (document.getElementById('usoFilter')) 
+        document.getElementById('usoFilter').value = 'all';
+      if (document.getElementById('jurisdictionFilter')) 
+        document.getElementById('jurisdictionFilter').value = 'all';
     }
   }
 
@@ -1015,34 +1199,60 @@
   }
 
   /* ========================
-     Botões / eventos
+     Botões / eventos - ATUALIZADA
   ======================== */
   function setupButtons(){
     document.getElementById('typeFilter').addEventListener('change', (e) => {
       currentClass = e.target.value;
       loadDashboard();
     });
+    
     document.getElementById('areaFilter').addEventListener('change', (e) => {
       currentFilter = e.target.value === 'all' ? null : e.target.value;
       updateAttributeControlsVisibility();
       loadDashboard();
     });
+    
     document.getElementById('yearFilter').addEventListener('change', (e) => {
       selectedYear = e.target.value === 'all' ? null : parseInt(e.target.value);
       updateQuarterOptions();
+      // Sincronizar com o select do meio se UC estiver selecionado
+      if (currentFilter === 'uc') {
+        document.getElementById('yearFilterMiddle').value = e.target.value;
+      }
     });
+    
     document.getElementById('quarterFilter').addEventListener('change', (e) => {
       selectedQuarter = e.target.value === 'all' ? null : parseInt(e.target.value);
+      // Sincronizar com o select do meio se UC estiver selecionado
+      if (currentFilter === 'uc') {
+        document.getElementById('quarterFilterMiddle').value = e.target.value;
+      }
     });
+    
+    // Event listeners para os selects do meio (quando UC está selecionado)
+    document.getElementById('yearFilterMiddle').addEventListener('change', (e) => {
+      selectedYear = e.target.value === 'all' ? null : parseInt(e.target.value);
+      updateQuarterOptions(true); // true indica que é para atualizar o select do meio
+    });
+    
+    document.getElementById('quarterFilterMiddle').addEventListener('change', (e) => {
+      selectedQuarter = e.target.value === 'all' ? null : parseInt(e.target.value);
+    });
+    
     document.getElementById('stateFilter').addEventListener('change', (e) => {
       selectedEstado = e.target.value === 'all' ? null : e.target.value;
     });
+    
+    // Filtro de Uso
+    document.getElementById('usoFilter').addEventListener('change', (e) => {
+      selectedUso = e.target.value === 'all' ? null : e.target.value;
+    });
+    
     document.getElementById('categoryFilter').addEventListener('change', (e) => {
       selectedCategoria = e.target.value === 'all' ? null : e.target.value;
     });
-    document.getElementById('modalityFilter').addEventListener('change', (e) => {
-      selectedModalidade = e.target.value === 'all' ? null : e.target.value;
-    });
+    
     document.getElementById('jurisdictionFilter').addEventListener('change', (e) => {
       const val = e.target.value;
       ucSubtype = val === 'all' ? 'all' : (val === 'Federal' ? 'ucf' : 'uce');
@@ -1057,9 +1267,11 @@
       document.getElementById('areaFilter').value = 'all';
       document.getElementById('yearFilter').value = 'all';
       document.getElementById('quarterFilter').value = 'all';
+      document.getElementById('yearFilterMiddle').value = 'all';
+      document.getElementById('quarterFilterMiddle').value = 'all';
       document.getElementById('stateFilter').value = 'all';
+      document.getElementById('usoFilter').value = 'all';
       document.getElementById('categoryFilter').value = 'all';
-      document.getElementById('modalityFilter').value = 'all';
       document.getElementById('jurisdictionFilter').value = 'all';
 
       currentClass = 'ameaca';
@@ -1067,11 +1279,12 @@
       selectedYear = null;
       selectedQuarter = null;
       selectedEstado = null;
+      selectedUso = null;
       selectedCategoria = null;
-      selectedModalidade = null;
       ucSubtype = 'all';
 
       updateAttributeControlsVisibility();
+      updateQuarterOptions();
       loadDashboard();
     });
   }
@@ -1205,10 +1418,10 @@
           else estOK = codes.includes(String(selectedEstado).toUpperCase());
         }
 
+        const usoOK = selectedUso ? (String(p.uso||'') === String(selectedUso)) : true;
         const catOK = selectedCategoria  ? (String(p.categoria||'') === String(selectedCategoria)) : true;
-        const modOK = selectedModalidade ? (String(p.modalidade||'') === String(selectedModalidade)) : true;
 
-        return anoOK && triOK && estOK && catOK && modOK;
+        return anoOK && triOK && estOK && usoOK && catOK;
       });
 
       updateBarChart();
@@ -1559,8 +1772,8 @@
         }
 
         const catOK = selectedCategoria  ? String(p.categoria||'') === String(selectedCategoria)  : true;
-        const modOK = selectedModalidade ? String(p.modalidade||'')=== String(selectedModalidade) : true;
-        return anoOK && triOK && estOK && catOK && modOK;
+        const usoOK = selectedUso ? String(p.uso||'') === String(selectedUso) : true;
+        return anoOK && triOK && estOK && catOK && usoOK;
       });
 
       const prevCelulas = prevSet.reduce((s, f) => s + cellValue(f?.properties || {}), 0);
@@ -1579,69 +1792,101 @@
   }
 
   /* ========================
-     Filtros (estáticos + dinâmicos)
+     Filtros (estáticos + dinâmicos) - ATUALIZADA
   ======================== */
   function populateFilterOptions() {
-    const years = [2025,2024,2023, 2022, 2021, 2020];
+    // Ano
     const yearSelect = document.getElementById('yearFilter');
-    yearSelect.innerHTML = '<option value="all">Todos os Anos</option>';
-    years.forEach(year => {
-      const option = document.createElement('option');
-      option.value = year;
-      option.textContent = year;
-      if (year === 2025) option.selected = true;
-      yearSelect.appendChild(option);
-    });
+    const yearSelectMiddle = document.getElementById('yearFilterMiddle');
+    if (yearSelect && yearSelectMiddle) {
+      const years = [2025,2024,2023, 2022, 2021, 2020];
+      yearSelect.innerHTML = '<option value="all">Todos os Anos</option>';
+      yearSelectMiddle.innerHTML = '<option value="all">Todos os Anos</option>';
+      years.forEach(year => {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        if (year === 2025) option.selected = true;
+        yearSelect.appendChild(option);
+        
+        const optionMiddle = document.createElement('option');
+        optionMiddle.value = year;
+        optionMiddle.textContent = year;
+        if (year === 2025) optionMiddle.selected = true;
+        yearSelectMiddle.appendChild(optionMiddle);
+      });
+    }
 
-    // Inicial: todos os estados (será refinado dinamicamente depois)
-    const estados = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
+    // Estado
     const stateSelect = document.getElementById('stateFilter');
-    stateSelect.innerHTML = '<option value="all">Amazônia Legal</option>';
-    estados.forEach(estado => {
-      const option = document.createElement('option');
-      option.value = estado;
-      option.textContent = estado;
-      stateSelect.appendChild(option);
-    });
+    if (stateSelect) {
+      const estados = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
+      stateSelect.innerHTML = '<option value="all">Amazônia Legal</option>';
+      estados.forEach(estado => {
+        const option = document.createElement('option');
+        option.value = estado;
+        option.textContent = estado;
+        stateSelect.appendChild(option);
+      });
+    }
 
-    const categories = ['Floresta','Cerrado','Caatinga','Mata Atlântica','Pampa','Pantanal'];
+    // Categoria
     const categorySelect = document.getElementById('categoryFilter');
-    categorySelect.innerHTML = '<option value="all">Todos</option>';
-    categories.forEach(category => {
-      const option = document.createElement('option');
-      option.value = category;
-      option.textContent = category;
-      categorySelect.appendChild(option);
-    });
+    if (categorySelect) {
+      const categories = ['Floresta','Cerrado','Caatinga','Mata Atlântica','Pampa','Pantanal'];
+      categorySelect.innerHTML = '<option value="all">Todos</option>';
+      categories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category;
+        option.textContent = category;
+        categorySelect.appendChild(option);
+      });
+    }
 
-    const modalities = ['Proteção Integral','Uso Sustentável'];
-    const modalitySelect = document.getElementById('modalityFilter');
-    modalitySelect.innerHTML = '<option value="all">Todas as Modalidades</option>';
-    modalities.forEach(modality => {
-      const option = document.createElement('option');
-      option.value = modality;
-      option.textContent = modality;
-      modalitySelect.appendChild(option);
-    });
+    // Tipo de Uso
+    const usoSelect = document.getElementById('usoFilter');
+    if (usoSelect) {
+      usoSelect.innerHTML = '<option value="all">Todos</option>';
+    }
 
     updateQuarterOptions();
   }
 
-  function updateQuarterOptions() {
-    const year = document.getElementById('yearFilter').value;
+  function updateQuarterOptions(updateMiddle = false) {
+    const year = updateMiddle ? document.getElementById('yearFilterMiddle').value : document.getElementById('yearFilter').value;
+    
+    // Atualizar o select principal
     const quarterSelect = document.getElementById('quarterFilter');
-    quarterSelect.innerHTML = '<option value="all">Todos os Trimestres</option>';
+    if (quarterSelect) {
+      quarterSelect.innerHTML = '<option value="all">Todos os Trimestres</option>';
+      if (year !== 'all') {
+        const y = parseInt(year);
+        const quarters = quartersForDownloads(y);
+        quarters.forEach(q => {
+          const option = document.createElement('option');
+          option.value = q;
+          const legenda = legendForDownloads(y, q) || `T${q}`;
+          option.textContent = `T${q} — ${legenda}`;
+          quarterSelect.appendChild(option);
+        });
+      }
+    }
 
-    if (year !== 'all' && geojsonData) {
-      const y = parseInt(year);
-      const quarters = availableQuarters(y);
-      quarters.forEach(q => {
-        const option = document.createElement('option');
-        option.value = q;
-        const legenda = findLegendaFor(y, q) || `T${q}`;
-        option.textContent = `T${q} — ${legenda}`;
-        quarterSelect.appendChild(option);
-      });
+    // Atualizar o select do meio (se necessário)
+    const quarterSelectMiddle = document.getElementById('quarterFilterMiddle');
+    if (quarterSelectMiddle) {
+      quarterSelectMiddle.innerHTML = '<option value="all">Todos os Trimestres</option>';
+      if (year !== 'all') {
+        const y = parseInt(year);
+        const quarters = quartersForDownloads(y);
+        quarters.forEach(q => {
+          const option = document.createElement('option');
+          option.value = q;
+          const legenda = legendForDownloads(y, q) || `T${q}`;
+          option.textContent = `T${q} — ${legenda}`;
+          quarterSelectMiddle.appendChild(option);
+        });
+      }
     }
   }
 
@@ -1659,19 +1904,38 @@
     estadosSet.add('TO');
 
     const stateSelect = document.getElementById('stateFilter');
-    const currentState = stateSelect.value; // pode ser 'all' ou uma sigla
+    if (stateSelect) {
+      const currentState = stateSelect.value;
+      stateSelect.innerHTML = '<option value="all">Amazônia Legal</option>';
+      Array.from(estadosSet)
+        .sort((a, b) => ufCodeToName(a).localeCompare(ufCodeToName(b)))
+        .forEach(estado => {
+          const option = document.createElement('option');
+          option.value = estado;
+          option.textContent = ufCodeToName(estado);
+          if (estado === currentState) option.selected = true;
+          stateSelect.appendChild(option);
+        });
+    }
 
-    stateSelect.innerHTML = '<option value="all">Amazônia Legal</option>';
-
-    Array.from(estadosSet)
-      .sort((a, b) => ufCodeToName(a).localeCompare(ufCodeToName(b)))
-      .forEach(estado => {
+    // Tipos de Uso dinâmicos (da coluna 'uso')
+    const usosSet = new Set();
+    feats.forEach(f => {
+      const uso = f.properties?.uso;
+      if (uso) usosSet.add(uso);
+    });
+    const usoSelect = document.getElementById('usoFilter');
+    if (usoSelect) {
+      const currentUso = usoSelect.value;
+      usoSelect.innerHTML = '<option value="all">Todos</option>';
+      Array.from(usosSet).sort().forEach(uso => {
         const option = document.createElement('option');
-        option.value = estado;
-        option.textContent = ufCodeToName(estado); // nome completo
-        if (estado === currentState) option.selected = true;
-        stateSelect.appendChild(option);
+        option.value = uso;
+        option.textContent = uso;
+        if (uso === currentUso) option.selected = true;
+        usoSelect.appendChild(option);
       });
+    }
 
     // Categorias dinâmicas
     const categoriasSet = new Set();
@@ -1680,32 +1944,17 @@
       if (categoria) categoriasSet.add(categoria);
     });
     const categorySelect = document.getElementById('categoryFilter');
-    const currentCategory = categorySelect.value;
-    categorySelect.innerHTML = '<option value="all">Todos</option>';
-    Array.from(categoriasSet).sort().forEach(categoria => {
-      const option = document.createElement('option');
-      option.value = categoria;
-      option.textContent = mapAcronymLabel(categoria);
-      if (categoria === currentCategory) option.selected = true;
-      categorySelect.appendChild(option);
-    });
-
-    // Modalidades dinâmicas
-    const modalidadesSet = new Set();
-    feats.forEach(f => {
-      const modalidade = f.properties?.modalidade;
-      if (modalidade) modalidadesSet.add(modalidade);
-    });
-    const modalitySelect = document.getElementById('modalityFilter');
-    const currentModality = modalitySelect.value;
-    modalitySelect.innerHTML = '<option value="all">Todas as Modalidades</option>';
-    Array.from(modalidadesSet).sort().forEach(modalidade => {
-      const option = document.createElement('option');
-      option.value = modalidade;
-      option.textContent = mapAcronymLabel(modalidade);
-      if (modalidade === currentModality) option.selected = true;
-      modalitySelect.appendChild(option);
-    });
+    if (categorySelect) {
+      const currentCategory = categorySelect.value;
+      categorySelect.innerHTML = '<option value="all">Todos</option>';
+      Array.from(categoriasSet).sort().forEach(categoria => {
+        const option = document.createElement('option');
+        option.value = categoria;
+        option.textContent = mapAcronymLabel(categoria);
+        if (categoria === currentCategory) option.selected = true;
+        categorySelect.appendChild(option);
+      });
+    }
   }
 
   /* ========================
