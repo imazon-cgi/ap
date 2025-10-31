@@ -150,6 +150,16 @@
       display: none;
     }
 
+    /* Destaque para filtros ativos */
+    .filter-active .form-label {
+      color: var(--primary-color);
+      font-weight: 700;
+    }
+    .filter-active select {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 2px rgba(0, 128, 85, 0.1);
+    }
+
     /* Pop-up customizado */
     .custom-popup {
       position: fixed;
@@ -480,10 +490,6 @@
   function apUrlFromBase(fileBase, type = AP_SELECTED_TYPE) {
     return `${apTypeBase(type)}/${fileBase}.${type === "shp" ? "zip" : type}`;
   }
-  function apQuarterlyUrl(year, quarter, type = AP_SELECTED_TYPE) {
-    const baseName = `ameaca_pressao_${year}_T${quarter}`;
-    return apUrlFromBase(baseName, type);
-  }
 
   /* ========================
      Utilidades gerais
@@ -630,6 +636,7 @@
   let selectedQuarter = null;   // null | 1..4
   let selectedEstado = null;    // "AM" ou combo "AM/RO"
   let selectedCategoria = null, selectedUso = null;
+  let AP_SELECTED_TYPE = 'geojson';
 
   let featureLayerIndex = new Map();
   let barItems = [];
@@ -785,7 +792,7 @@
   ======================== */
   function getDashboardFeatureCollection(mode='map'){
     let features = [];
-    if (mode === 'map')      features = (barItems || []).map(r => r?._f).filter(Boolean);
+    if (mode === 'map')      features = (barItems || []).map(r => r._f).filter(Boolean);
     else if (mode === 'filtered') features = (filteredData || []);
     else                      features = (geojsonData?.features) || [];
     const norm = features.map(f => ({ type: 'Feature', properties: { ...(f.properties || {}) }, geometry: f.geometry ? JSON.parse(JSON.stringify(f.geometry)) : null }));
@@ -821,31 +828,12 @@
   /* ========================
      Downloads - Ameaça e Pressão (padrão SAD) → AWS - CORRIGIDO
   ======================== */
-let AP_SELECTED_TYPE = 'geojson';
 
 // Função corrigida para gerar URLs no formato correto
 function apQuarterlyUrl(year, quarter, type = AP_SELECTED_TYPE) {
   // Formato: ameaca_e_pressao_1_trimestre_2020
   const baseName = `ameaca_e_pressao_${quarter}_trimestre_${year}`;
   return apUrlFromBase(baseName, type);
-}
-
-// Função auxiliar corrigida
-function apUrlFromBase(fileBase, type = AP_SELECTED_TYPE) {
-  return `${apTypeBase(type)}/${fileBase}.${type === 'shp' ? 'zip' : type}`;
-}
-
-// Função para obter base do tipo corrigida
-function apTypeBase(type) {
-  const { base, pref } = getApBase();
-  // Mapeamento correto dos tipos para pastas
-  const folderMap = {
-    'geojson': 'geojson',
-    'csv': 'csv', 
-    'shp': 'shapefile'
-  };
-  const folder = folderMap[type] || 'geojson';
-  return `${base}${pref}/${folder}`;
 }
 
 // Função para construir blocos de ano - CORRIGIDA
@@ -1090,7 +1078,7 @@ function makeChip(label, url) {
   }
 
   /* ========================
-     Mapa
+     Mapa - CORREÇÃO PARA FILTRO "TODOS"
   ======================== */
   function initializeMap(){
     if (map) { try{ map.off(); map.remove(); }catch(e){} }
@@ -1134,26 +1122,96 @@ function makeChip(label, url) {
     if (layer.setStyle) layer.setStyle({ color, fillColor: color, weight:2, opacity:0.95, fillOpacity:0.6 });
     if (layer.eachLayer) layer.eachLayer(child => paintLayer(child, color));
   }
+
   function updateMap(){
     if (geojsonLayer){ try{ geojsonLayer.remove(); }catch(e){} }
     featureLayerIndex = new Map();
 
-    const featuresToDraw = (barItems || []).map(r => r._f).filter(Boolean);
+    // CORREÇÃO: Quando "Todos" está selecionado, precisamos agrupar as features por território
+    // e mostrar todos os ranks que cada território aparece
+    let featuresToDraw = [];
+    const featuresByKey = new Map();
+
+    if (currentClass === 'Todos') {
+      // Agrupa todas as features por chave do território
+      barItems.forEach((r, index) => {
+        const key = mkKey(r._f.properties || {});
+        if (!featuresByKey.has(key)) {
+          featuresByKey.set(key, {
+            feature: r._f,
+            ranks: [],
+            classes: [],
+            cells: []
+          });
+        }
+        const entry = featuresByKey.get(key);
+        entry.ranks.push(index + 1);
+        entry.classes.push(r._f.properties?.class || currentClass);
+        entry.cells.push(r.cells);
+      });
+
+      // Para o mapa, usamos uma feature única por território, mas com informações consolidadas
+      featuresToDraw = Array.from(featuresByKey.values()).map(entry => {
+        // Clona a feature para não modificar a original
+        const clonedFeature = JSON.parse(JSON.stringify(entry.feature));
+        // Adiciona propriedades consolidadas
+        clonedFeature.properties._consolidated = true;
+        clonedFeature.properties._allRanks = entry.ranks;
+        clonedFeature.properties._allClasses = entry.classes;
+        clonedFeature.properties._allCells = entry.cells;
+        return clonedFeature;
+      });
+    } else {
+      // Comportamento normal para outros filtros
+      featuresToDraw = (barItems || []).map(r => r._f).filter(Boolean);
+    }
 
     const rankByKey = new Map();
-    (barItems || []).forEach((r, i) => rankByKey.set(mkKey(r?._f?.properties || {}), i + 1));
+    
+    if (currentClass === 'Todos') {
+      // Para "Todos", cada território pode ter múltiplos ranks
+      featuresByKey.forEach((entry, key) => {
+        rankByKey.set(key, {
+          ranks: entry.ranks,
+          classes: entry.classes
+        });
+      });
+    } else {
+      // Comportamento normal para outros filtros
+      (barItems || []).forEach((r, i) => rankByKey.set(mkKey(r?._f?.properties || {}), i + 1));
+    }
 
-    const buildHoverHTML = (p, rank) => `
-      <div style="font-family:Montserrat,sans-serif;min-width:240px">
-        <div style="font-weight:700;font-size:14px;margin-bottom:6px">${p.nome || '-'}</div>
-        ${rank ? `<div><b>Posição no Ranking:</b> #${rank}°</div>` : ``}
-        <div><b>Estado:</b> ${formatEstadoFull(p.estado)}</div>
-        <div><b>Categoria:</b> ${mapAcronymLabel(p.categoria ?? '-')}</div>
-        <div><b>Modalidade:</b> ${mapAcronymLabel(p.modalidade || '-')}</div>
-        <div><b>Uso:</b> ${p.uso || '-'}</div>
-        <div><b>Células:</b> ${Number(p.celulas || 0).toLocaleString('pt-BR')}</div>
-        <div><b>Ano:</b> ${p.ano || '-'} &nbsp; <b>Trimestre:</b> ${periodLabel(p)}</div>
-      </div>`;
+    // CORREÇÃO: Tooltip aprimorado para mostrar múltiplos ranks quando aplicável
+    const buildHoverHTML = (p, rankInfo) => {
+      let rankHTML = '';
+      
+      if (currentClass === 'Todos' && rankInfo && rankInfo.ranks) {
+        // Mostra todos os ranks para o território
+        rankHTML = `<div><b>Posições no Ranking:</b><br/>`;
+        rankInfo.ranks.forEach((rank, index) => {
+          const classe = rankInfo.classes[index];
+          const classeTexto = classe === 'ameaca' ? 'Ameaça' : classe === 'pressao' ? 'Pressão' : 'Geral';
+          rankHTML += `#${rank}° (${classeTexto})<br/>`;
+        });
+        rankHTML += `</div>`;
+      } else if (rankInfo) {
+        // Comportamento normal para um único rank
+        rankHTML = `<div><b>Posição no Ranking:</b> #${rankInfo}°</div>`;
+      }
+      
+      return `
+        <div style="font-family:Montserrat,sans-serif;min-width:240px">
+          <div style="font-weight:700;font-size:14px;margin-bottom:6px">${p.nome || '-'}</div>
+          ${rankHTML}
+          <div><b>Estado:</b> ${formatEstadoFull(p.estado)}</div>
+          <div><b>Categoria:</b> ${mapAcronymLabel(p.categoria ?? '-')}</div>
+          <div><b>Modalidade:</b> ${mapAcronymLabel(p.modalidade || '-')}</div>
+          <div><b>Uso:</b> ${p.uso || '-'}</div>
+          <div><b>Células:</b> ${Number(p.celulas || 0).toLocaleString('pt-BR')}</div>
+          <div><b>Ano:</b> ${p.ano || '-'} &nbsp; <b>Trimestre:</b> ${periodLabel(p)}</div>
+          ${currentClass === 'Todos' && p._allCells ? `<div><b>Células por categoria:</b><br/>${p._allClasses.map((classe, idx) => `${classe === 'ameaca' ? 'Ameaça' : 'Pressão'}: ${p._allCells[idx].toLocaleString('pt-BR')}`).join('<br/>')}</div>` : ''}
+        </div>`;
+    };
 
     const mapFeatures = [];
     geojsonLayer = L.geoJSON(featuresToDraw, {
@@ -1175,8 +1233,8 @@ function makeChip(label, url) {
 
         layer.unbindPopup?.();
 
-        const rank = rankByKey.get(key) || null;
-        layer.bindTooltip(buildHoverHTML(p, rank),
+        const rankInfo = rankByKey.get(key) || null;
+        layer.bindTooltip(buildHoverHTML(p, rankInfo),
           { sticky:true, direction:'top', opacity:1, className:'ap-hover-card' });
 
         layer.on('mouseover', () => {
@@ -1204,12 +1262,14 @@ function makeChip(label, url) {
   function setupButtons(){
     document.getElementById('typeFilter').addEventListener('change', (e) => {
       currentClass = e.target.value;
+      updateFilterDisplay();
       loadDashboard();
     });
     
     document.getElementById('areaFilter').addEventListener('change', (e) => {
       currentFilter = e.target.value === 'all' ? null : e.target.value;
       updateAttributeControlsVisibility();
+      updateFilterDisplay();
       loadDashboard();
     });
     
@@ -1220,6 +1280,7 @@ function makeChip(label, url) {
       if (currentFilter === 'uc') {
         document.getElementById('yearFilterMiddle').value = e.target.value;
       }
+      updateFilterDisplay();
     });
     
     document.getElementById('quarterFilter').addEventListener('change', (e) => {
@@ -1228,34 +1289,41 @@ function makeChip(label, url) {
       if (currentFilter === 'uc') {
         document.getElementById('quarterFilterMiddle').value = e.target.value;
       }
+      updateFilterDisplay();
     });
     
     // Event listeners para os selects do meio (quando UC está selecionado)
     document.getElementById('yearFilterMiddle').addEventListener('change', (e) => {
       selectedYear = e.target.value === 'all' ? null : parseInt(e.target.value);
       updateQuarterOptions(true); // true indica que é para atualizar o select do meio
+      updateFilterDisplay();
     });
     
     document.getElementById('quarterFilterMiddle').addEventListener('change', (e) => {
       selectedQuarter = e.target.value === 'all' ? null : parseInt(e.target.value);
+      updateFilterDisplay();
     });
     
     document.getElementById('stateFilter').addEventListener('change', (e) => {
       selectedEstado = e.target.value === 'all' ? null : e.target.value;
+      updateFilterDisplay();
     });
     
     // Filtro de Uso
     document.getElementById('usoFilter').addEventListener('change', (e) => {
       selectedUso = e.target.value === 'all' ? null : e.target.value;
+      updateFilterDisplay();
     });
     
     document.getElementById('categoryFilter').addEventListener('change', (e) => {
       selectedCategoria = e.target.value === 'all' ? null : e.target.value;
+      updateFilterDisplay();
     });
     
     document.getElementById('jurisdictionFilter').addEventListener('change', (e) => {
       const val = e.target.value;
       ucSubtype = val === 'all' ? 'all' : (val === 'Federal' ? 'ucf' : 'uce');
+      updateFilterDisplay();
     });
 
     document.getElementById('applyFilters').addEventListener('click', () => {
@@ -1285,6 +1353,7 @@ function makeChip(label, url) {
 
       updateAttributeControlsVisibility();
       updateQuarterOptions();
+      updateFilterDisplay();
       loadDashboard();
     });
   }
@@ -1319,46 +1388,84 @@ function makeChip(label, url) {
     collections.forEach(c => { if(c && Array.isArray(c.features)) all.push(...c.features); });
     return { type:'FeatureCollection', features: all };
   }
+
+  /* ========================
+     CORREÇÃO: Targets para UC com jurisdição
+  ======================== */
   function targetsFor(scope, cls, year, ucSub){
     const t = [];
-    const addUC = (c, sub)=>{ t.push(filename('uc', c, year, sub)); };
-    const addTI = (c)=>{ t.push(filename('ti', c, year)); };
+    const addUC = (c, sub) => { 
+      // CORREÇÃO: Só adiciona se o subtipo corresponder ou for 'all'
+      if (ucSub === 'all' || sub === ucSub) {
+        t.push(filename('uc', c, year, sub)); 
+      }
+    };
+    
+    const addTI = (c) => { t.push(filename('ti', c, year)); };
 
-    if(scope===null){
-      if(cls==='Todos'){ t.push(filename(null,'ameaca',year)); t.push(filename(null,'pressao',year)); }
-      else{ t.push(filename(null,cls,year)); }
-      return t;
-    }
-    if(scope==='ti'){
-      if(cls==='Todos'){ addTI('ameaca'); addTI('pressao'); }
-      else{ addTI(cls); }
-      return t;
-    }
-    if(scope==='uc'){
-      if(cls==='Todos'){
-        addUC('ameaca','uce'); addUC('pressao','uce');
-        addUC('ameaca','ucf'); addUC('pressao','ucf');
-      }else{
-        addUC(cls,'uce'); addUC(cls,'ucf');
+    if(scope === null){
+      if(cls === 'Todos'){ 
+        t.push(filename(null,'ameaca',year)); 
+        t.push(filename(null,'pressao',year)); 
+      } else { 
+        t.push(filename(null,cls,year)); 
       }
       return t;
     }
-    if(scope==='allap'){
-      if(cls==='Todos'){
-        addTI('ameaca'); addTI('pressao');
-        addUC('ameaca','uce'); addUC('pressao','uce');
-        addUC('ameaca','ucf'); addUC('pressao','ucf');
-      }else{
+    
+    if(scope === 'ti'){
+      if(cls === 'Todos'){ 
+        addTI('ameaca'); 
+        addTI('pressao'); 
+      } else { 
+        addTI(cls); 
+      }
+      return t;
+    }
+    
+    if(scope === 'uc'){
+      if(cls === 'Todos'){
+        // CORREÇÃO: Considera jurisdição específica
+        if (ucSub === 'all' || ucSub === 'uce') {
+          addUC('ameaca','uce'); 
+          addUC('pressao','uce');
+        }
+        if (ucSub === 'all' || ucSub === 'ucf') {
+          addUC('ameaca','ucf'); 
+          addUC('pressao','ucf');
+        }
+      } else {
+        if (ucSub === 'all' || ucSub === 'uce') addUC(cls,'uce'); 
+        if (ucSub === 'all' || ucSub === 'ucf') addUC(cls,'ucf');
+      }
+      return t;
+    }
+    
+    if(scope === 'allap'){
+      if(cls === 'Todos'){
+        addTI('ameaca'); 
+        addTI('pressao');
+        if (ucSub === 'all' || ucSub === 'uce') {
+          addUC('ameaca','uce'); 
+          addUC('pressao','uce');
+        }
+        if (ucSub === 'all' || ucSub === 'ucf') {
+          addUC('ameaca','ucf'); 
+          addUC('pressao','ucf');
+        }
+      } else {
         addTI(cls);
-        addUC(cls,'uce'); addUC(cls,'ucf');
+        if (ucSub === 'all' || ucSub === 'uce') addUC(cls,'uce'); 
+        if (ucSub === 'all' || ucSub === 'ucf') addUC(cls,'ucf');
       }
       return t;
     }
+    
     return t;
   }
 
   /* ========================
-     Carregar dashboard
+     Carregar dashboard - CORRIGIDO
   ======================== */
   async function loadDashboard(){
     showLoader();
@@ -1366,51 +1473,36 @@ function makeChip(label, url) {
     try {
       setTitles();
 
-      if (selectedEstado === 'TO') {
-        const basePath = '/dataset/ap/geojson/';
-        const scope = currentFilter;
-        const years = (selectedYear == null)
-          ? [2020,2021,2022,2023,2024,2025]
-          : [selectedYear, selectedYear - 1].filter(y => y >= 2020 && y <= 2025);
+      // CORREÇÃO: Aplicar filtro de jurisdição no carregamento dos dados
+      const basePath = '/dataset/ap/geojson/';
+      const scope = currentFilter;
+      const years = (selectedYear == null)
+        ? [2020,2021,2022,2023,2024,2025]
+        : [selectedYear, selectedYear - 1].filter(y => y >= 2020 && y <= 2025);
 
-        const allTargets = years.flatMap(y => targetsFor(scope, currentClass, y, ucSubtype)).filter(Boolean);
-        const results = await Promise.all(allTargets.map(f => safeFetch(basePath + f)));
-        geojsonData = mergeCollections(results.filter(Boolean));
-
-        const hasDataForTO = geojsonData.features?.some(f => {
-          const props = f.properties || {};
-          const estados = parseUFs(props.estado);
-          return estados.includes('TO');
-        });
-
-        if (!hasDataForTO) {
-          hideLoader();
-          showNoDataPopup();
-          return;
-        }
-      } else {
-        const basePath = '/dataset/ap/geojson/';
-        const scope = currentFilter;
-        const years = (selectedYear == null)
-          ? [2020,2021,2022,2023,2024,2025]
-          : [selectedYear, selectedYear - 1].filter(y => y >= 2020 && y <= 2025);
-
-        const allTargets = years.flatMap(y => targetsFor(scope, currentClass, y, ucSubtype)).filter(Boolean);
-        const results = await Promise.all(allTargets.map(f => safeFetch(basePath + f)));
-        geojsonData = mergeCollections(results.filter(Boolean));
-      }
+      // CORREÇÃO: Garantir que o filtro de jurisdição seja aplicado no targetsFor
+      const allTargets = years.flatMap(y => targetsFor(scope, currentClass, y, ucSubtype)).filter(Boolean);
+      const results = await Promise.all(allTargets.map(f => safeFetch(basePath + f)));
+      geojsonData = mergeCollections(results.filter(Boolean));
 
       // Menus dinâmicos + trimestre
       populateDynamicMenus();
       updateQuarterOptions();
 
       const feats = geojsonData.features || [];
-      filteredData = feats.filter(f=>{
+      
+      // CORREÇÃO: Filtro aprimorado que considera jurisdição UC
+      filteredData = feats.filter(f => {
         const p = f.properties || {};
-        const anoOK = (selectedYear==null) ? true : (String(p.ano)===String(selectedYear));
+        
+        // Filtro de Ano
+        const anoOK = (selectedYear == null) ? true : (String(p.ano) === String(selectedYear));
+        
+        // Filtro de Trimestre
         const q = getQuarter(p);
         const triOK = (selectedQuarter == null) ? true : (q === selectedQuarter);
 
+        // Filtro de Estado
         const codes = parseUFs(p.estado);
         let estOK = true;
         if (selectedEstado){
@@ -1418,16 +1510,54 @@ function makeChip(label, url) {
           else estOK = codes.includes(String(selectedEstado).toUpperCase());
         }
 
-        const usoOK = selectedUso ? (String(p.uso||'') === String(selectedUso)) : true;
-        const catOK = selectedCategoria  ? (String(p.categoria||'') === String(selectedCategoria)) : true;
+        // CORREÇÃO: Filtro de Jurisdição para UC - VERIFICAÇÃO CORRIGIDA
+        let jurisdictionOK = true;
+        if (currentFilter === 'uc' && ucSubtype !== 'all') {
+          const modalidade = p.modalidade || '';
+          // CORREÇÃO: Comparação mais robusta
+          jurisdictionOK = modalidade.toLowerCase().includes(ucSubtype.toLowerCase());
+        }
 
-        return anoOK && triOK && estOK && usoOK && catOK;
+        // Filtros adicionais
+        const usoOK = selectedUso ? (String(p.uso||'') === String(selectedUso)) : true;
+        const catOK = selectedCategoria ? (String(p.categoria||'') === String(selectedCategoria)) : true;
+
+        return anoOK && triOK && estOK && jurisdictionOK && usoOK && catOK;
       });
+
+      // CORREÇÃO: Agregação para evitar duplicatas quando "Todos" está selecionado
+      if (currentClass === 'Todos') {
+        const aggregatedData = new Map();
+        
+        filteredData.forEach(f => {
+          const p = f.properties || {};
+          const key = mkKey(p);
+          
+          if (!aggregatedData.has(key)) {
+            // Clona o feature e inicializa as células
+            aggregatedData.set(key, {
+              ...f,
+              properties: {
+                ...p,
+                celulas: 0,
+                class: 'Todos' // Marca como agregado
+              }
+            });
+          }
+          
+          // Soma as células
+          const existing = aggregatedData.get(key);
+          existing.properties.celulas += cellValue(p);
+        });
+        
+        filteredData = Array.from(aggregatedData.values());
+      }
 
       updateBarChart();
       updateMap();
       updateDonutCharts();
       updateStatistics();
+      updateFilterDisplay();
 
     } catch (err) {
       console.error('Falha ao carregar dashboard:', err);
@@ -1437,7 +1567,42 @@ function makeChip(label, url) {
   }
 
   /* ========================
-     Ranking (barra)
+     CORREÇÃO: Atualização visual dos filtros selecionados
+  ======================== */
+  function updateFilterDisplay() {
+    // Atualiza visualmente os selects para mostrar o que está selecionado
+    const yearSelect = document.getElementById('yearFilter');
+    const yearSelectMiddle = document.getElementById('yearFilterMiddle');
+    const quarterSelect = document.getElementById('quarterFilter');
+    const quarterSelectMiddle = document.getElementById('quarterFilterMiddle');
+    
+    if (yearSelect && selectedYear) {
+      yearSelect.value = selectedYear;
+    }
+    if (yearSelectMiddle && selectedYear) {
+      yearSelectMiddle.value = selectedYear;
+    }
+    if (quarterSelect && selectedQuarter) {
+      quarterSelect.value = selectedQuarter;
+    }
+    if (quarterSelectMiddle && selectedQuarter) {
+      quarterSelectMiddle.value = selectedQuarter;
+    }
+    
+    // Adiciona classe para destacar filtros ativos
+    const filterItems = document.querySelectorAll('.filter-item select');
+    filterItems.forEach(select => {
+      const parent = select.closest('.filter-item');
+      if (select.value && select.value !== 'all') {
+        parent.classList.add('filter-active');
+      } else {
+        parent.classList.remove('filter-active');
+      }
+    });
+  }
+
+  /* ========================
+     Ranking (barra) - CORRIGIDO
   ======================== */
   function wrapLabelToTwoLines(label, maxLineLen=28){
     const words = String(label).split(' ');
@@ -1502,6 +1667,7 @@ function makeChip(label, url) {
     const ctx = document.getElementById('barChart').getContext('2d');
     if (barChart) barChart.destroy();
 
+    // CORREÇÃO: Ordenação correta - primeiro por células (decrescente), depois por nome (crescente)
     const rows = (filteredData || [])
       .map(f => ({
         name: f.properties?.nome || '-',
@@ -1510,7 +1676,14 @@ function makeChip(label, url) {
         key: mkKey(f.properties || {}),
         _f: f
       }))
-      .sort((a, b) => b.cells - a.cells)
+      .sort((a, b) => {
+        // Primeiro critério: número de células (decrescente)
+        if (b.cells !== a.cells) {
+          return b.cells - a.cells;
+        }
+        // Segundo critério: ordem alfabética do nome (crescente)
+        return a.name.localeCompare(b.name);
+      })
       .slice(0, 10);
 
     const labels = rows.map(d => wrapLabelToTwoLines(d.name, 28));
@@ -1771,9 +1944,16 @@ function makeChip(label, url) {
           else estOK = codes.includes(String(selectedEstado).toUpperCase());
         }
 
+        // CORREÇÃO: Aplica os mesmos filtros de jurisdição para o ano anterior
+        let jurisdictionOK = true;
+        if (currentFilter === 'uc' && ucSubtype !== 'all') {
+          const modalidade = p.modalidade || '';
+          jurisdictionOK = modalidade.toLowerCase().includes(ucSubtype.toLowerCase());
+        }
+
         const catOK = selectedCategoria  ? String(p.categoria||'') === String(selectedCategoria)  : true;
         const usoOK = selectedUso ? String(p.uso||'') === String(selectedUso) : true;
-        return anoOK && triOK && estOK && catOK && usoOK;
+        return anoOK && triOK && estOK && jurisdictionOK && catOK && usoOK;
       });
 
       const prevCelulas = prevSet.reduce((s, f) => s + cellValue(f?.properties || {}), 0);
@@ -1852,48 +2032,77 @@ function makeChip(label, url) {
     updateQuarterOptions();
   }
 
+  /* ========================
+     CORREÇÃO: Atualização de trimestres com fallback para "Todos"
+  ======================== */
   function updateQuarterOptions(updateMiddle = false) {
     const year = updateMiddle ? document.getElementById('yearFilterMiddle').value : document.getElementById('yearFilter').value;
+    
+    // Obter trimestres disponíveis para o ano selecionado
+    const quarters = year !== 'all' ? quartersForDownloads(parseInt(year)) : [1,2,3,4];
     
     // Atualizar o select principal
     const quarterSelect = document.getElementById('quarterFilter');
     if (quarterSelect) {
+      const currentQuarter = quarterSelect.value;
       quarterSelect.innerHTML = '<option value="all">Todos os Trimestres</option>';
       if (year !== 'all') {
-        const y = parseInt(year);
-        const quarters = quartersForDownloads(y);
         quarters.forEach(q => {
           const option = document.createElement('option');
           option.value = q;
-          const legenda = legendForDownloads(y, q) || `T${q}`;
+          const legenda = legendForDownloads(parseInt(year), q) || `T${q}`;
           option.textContent = `T${q} — ${legenda}`;
           quarterSelect.appendChild(option);
         });
+      }
+
+      // CORREÇÃO: Se o trimestre atual não estiver disponível, voltar para "Todos"
+      if (year !== 'all' && currentQuarter !== 'all' && !quarters.includes(parseInt(currentQuarter))) {
+        quarterSelect.value = 'all';
+        selectedQuarter = null;
+        
+        // Sincronizar com o select do meio se UC estiver selecionado
+        if (currentFilter === 'uc') {
+          document.getElementById('quarterFilterMiddle').value = 'all';
+        }
       }
     }
 
     // Atualizar o select do meio (se necessário)
     const quarterSelectMiddle = document.getElementById('quarterFilterMiddle');
     if (quarterSelectMiddle) {
+      const currentQuarter = quarterSelectMiddle.value;
       quarterSelectMiddle.innerHTML = '<option value="all">Todos os Trimestres</option>';
       if (year !== 'all') {
-        const y = parseInt(year);
-        const quarters = quartersForDownloads(y);
         quarters.forEach(q => {
           const option = document.createElement('option');
           option.value = q;
-          const legenda = legendForDownloads(y, q) || `T${q}`;
+          const legenda = legendForDownloads(parseInt(year), q) || `T${q}`;
           option.textContent = `T${q} — ${legenda}`;
           quarterSelectMiddle.appendChild(option);
         });
       }
+
+      // CORREÇÃO: Se o trimestre atual não estiver disponível, voltar para "Todos"
+      if (year !== 'all' && currentQuarter !== 'all' && !quarters.includes(parseInt(currentQuarter))) {
+        quarterSelectMiddle.value = 'all';
+        selectedQuarter = null;
+        
+        // Sincronizar com o select principal se UC não estiver selecionado
+        if (currentFilter !== 'uc') {
+          document.getElementById('quarterFilter').value = 'all';
+        }
+      }
     }
   }
 
+  /* ========================
+     CORREÇÃO: População dinâmica de categorias considerando jurisdição
+  ======================== */
   function populateDynamicMenus() {
     const feats = (geojsonData?.features) || [];
 
-    // Estados dinâmicos a partir dos dados
+    // Estados dinâmicos
     const estadosSet = new Set();
     feats.forEach(f => {
       const estado = f.properties?.estado;
@@ -1918,12 +2127,20 @@ function makeChip(label, url) {
         });
     }
 
-    // Tipos de Uso dinâmicos (da coluna 'uso')
+    // CORREÇÃO: Tipos de Uso dinâmicos considerando filtro atual
     const usosSet = new Set();
     feats.forEach(f => {
-      const uso = f.properties?.uso;
-      if (uso) usosSet.add(uso);
+      const p = f.properties || {};
+      
+      // Aplica filtros atuais para contexto
+      const jurisdictionOK = currentFilter !== 'uc' || ucSubtype === 'all' || 
+                            (p.modalidade || '').toLowerCase().includes(ucSubtype.toLowerCase());
+      
+      if (jurisdictionOK && p.uso) {
+        usosSet.add(p.uso);
+      }
     });
+    
     const usoSelect = document.getElementById('usoFilter');
     if (usoSelect) {
       const currentUso = usoSelect.value;
@@ -1937,12 +2154,19 @@ function makeChip(label, url) {
       });
     }
 
-    // Categorias dinâmicas
+    // CORREÇÃO: Categorias dinâmicas considerando jurisdição
     const categoriasSet = new Set();
     feats.forEach(f => {
-      const categoria = f.properties?.categoria;
-      if (categoria) categoriasSet.add(categoria);
+      const p = f.properties || {};
+      
+      const jurisdictionOK = currentFilter !== 'uc' || ucSubtype === 'all' || 
+                            (p.modalidade || '').toLowerCase().includes(ucSubtype.toLowerCase());
+      
+      if (jurisdictionOK && p.categoria) {
+        categoriasSet.add(p.categoria);
+      }
     });
+    
     const categorySelect = document.getElementById('categoryFilter');
     if (categorySelect) {
       const currentCategory = categorySelect.value;
