@@ -1,701 +1,748 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Dashboard Ameaça & Pressão - GeoJSON</title>
+  <!DOCTYPE html>
+  <html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Dashboard Ameaça & Pressão - GeoJSON</title>
 
-  <!-- CSS libs -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.datatables.net/2.0.3/css/dataTables.dataTables.min.css">
+    <!-- CSS libs -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.0.3/css/dataTables.dataTables.min.css">
 
-  <style>
-    :root{
-      --primary-color:#008055; --primary-dark:#003300; --accent-color:#FF6D00;
-      --text-color:#212121; --background-color:#F5F5F5; --card-color:#FFFFFF;
-      --border-radius:12px; --box-shadow:0 6px 24px rgba(0,0,0,.08);
-      --pressao-red:#c62828; --ameaca-orange:#FF6D00;
-    }
-    body,.btn,.form-select,.form-control,.stat-card,.card-header{font-family:'Montserrat',sans-serif!important}
-    body{background:var(--background-color);color:var(--text-color);padding:1rem;margin:0;min-width:320px}
-    .dashboard-header{ text-align:center;margin-bottom:1rem;background:var(--card-color);padding:1.25rem;border-radius:var(--border-radius);box-shadow:var(--box-shadow) }
-    .card{border-radius:var(--border-radius);box-shadow:var(--box-shadow);border:none;height:100%;transition:.3s}
-    .card:hover{transform:translateY(-5px)}
-    .card-header{
-      background:var(--card-color)!important;color:var(--primary-dark)!important;font-weight:700!important;
-      border-bottom:2px solid var(--accent-color)!important;padding:.9rem 1.1rem;min-height:56px;
-      display:flex;align-items:center;justify-content:space-between;gap:.75rem
-    }
-    .card-title-wrap{display:flex;align-items:center;gap:.5rem;min-width:0}
-    .card-title-wrap span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
-    /* FILTROS */
-    .filter-section{background:var(--card-color);padding:1.5rem;border-radius:var(--border-radius);box-shadow:var(--box-shadow);margin-bottom:2rem}
-    .filter-container{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;align-items:end}
-    .filter-item{display:flex;flex-direction:column;gap:6px}
-    .span-2{grid-column:span 2}
-    .form-select,.form-control{height:42px;border-radius:8px;border:1px solid #ddd}
-    .btn-primary{height:42px;background:var(--primary-color);border-color:var(--primary-color);border-radius:8px;font-weight:600}
-    .btn-primary:hover{background:var(--primary-dark);border-color:var(--primary-dark)}
-    .btn-secondary{height:42px;border-radius:8px;font-weight:600}
-
-    .current-dashboard{background:var(--primary-color);color:#fff;padding:6px 14px;border-radius:22px;font-weight:700;text-align:center;margin-bottom:10px}
-
-    #map{height:460px;width:100%;border-radius:var(--border-radius);box-shadow:inset 0 0 10px rgba(0,0,0,.1)}
-    .chart-container{position:relative;height:460px;width:100%}
-
-    .stat-card{background:var(--primary-color);color:#fff;border-radius:10px;padding:15px;margin-bottom:15px;box-shadow:0 4px 8px rgba(0,0,0,.1)}
-    .stat-label{font-size:.9rem;opacity:.9}.stat-value{font-size:1.8rem;font-weight:700;margin:5px 0}
-    .data-table-container{overflow-x:auto;border-radius:var(--border-radius);box-shadow:0 2px 10px rgba(0,0,0,.05)}
-    #data-table{width:100%}
-    #data-table th{background:var(--primary-dark);color:#fff;font-weight:600;padding:12px}
-    #data-table td{padding:12px;border-bottom:1px solid #eee}
-    #data-table tr:nth-child(even){background:#f9f9f9}
-    #data-table tr:hover{background:#f0faf7}
-
-    .donut-card .card-body{display:flex;flex-direction:column;gap:12px;height:420px}
-    .legend-grid{display:flex;flex-direction:column;gap:8px;max-height:140px;overflow:auto;padding-right:4px}
-    .legend-item{background:#f8f9fa;border:1px solid #e9ecef;border-radius:10px;padding:8px 10px;font-size:12px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;cursor:pointer;transition:.2s;width:100%;text-align:left}
-    .legend-left{display:flex;align-items:flex-start;gap:10px;min-width:0;flex:1 1 auto}
-    .legend-box{width:14px;height:14px;border-radius:3px;display:inline-block;flex:0 0 14px}
-    .legend-label{font-weight:600;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.25;overflow-wrap:anywhere}
-    .legend-meta{font-variant-numeric:tabular-nums;opacity:.9;white-space:nowrap;margin-left:6px;align-self:flex-start}
-
-    @media (min-width: 992px){
-      .donut-card .card-body{flex-direction:row;align-items:stretch}
-      .donut-card .donut-chart-container{flex:0 0 56%;min-height:0;order:1}
-      .donut-card .legend-grid{flex:1 1 44%;max-height:100%;order:2;padding-right:6px}
-    }
-
-    @media (max-width:576px){#map{height:320px}.chart-container{height:320px}}
-    @media (min-width:1025px){.container-fluid{max-width:1400px;margin:0 auto}}
-
-    /* ===== Downloads — Ameaça e Pressão (novo padrão SAD) ===== */
-    .downloads-card .card-header{
-      display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; gap:12px; border-bottom:none!important;
-    }
-    .downloads-title{font-weight:700}
-
-    .collapse-btn{
-      position:relative;display:inline-flex;align-items:center;justify-content:center;
-      width:38px;height:38px;border-radius:999px;border:1px solid rgba(0,0,0,.08);
-      background:#fff;color:var(--primary-color);cursor:pointer;transition:all .18s ease;
-      box-shadow:0 2px 10px rgba(0,0,0,.05); justify-self:end;
-    }
-    .collapse-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,0,0,.08)}
-    .collapse-btn i{font-size:15px;transition:transform .25s ease}
-    .downloads-card.collapsed .collapse-btn i{transform:rotate(180deg)}
-
-    .typebar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-self:center}
-    .typebtn{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;border:1px solid #e0e0e0;background:#fff;color:#2b2b2b;cursor:pointer;font-weight:600}
-    .typebtn:hover{border-color:var(--primary-color)}
-    .typebtn.active{background:var(--primary-color);color:#fff;border-color:var(--primary-color)}
-    .typebtn i{font-size:14px}
-
-    .list-divider{list-style:none;padding:8px 0 0;margin:0}
-    .list-divider > li{padding:10px 0;border-bottom:1px solid #eee}
-    .list-divider > li:last-child{border-bottom:none}
-    details{border:1px solid #e8e8e8;border-radius:12px;margin:10px 0;background:#fff}
-    summary{cursor:pointer;list-style:none;padding:12px 16px;font-weight:700}
-    summary::-webkit-details-marker{display:none}
-    .year{font-weight:700}
-    .format-wrap{display:block;padding:0 16px 12px}
-    .format-card{border:1px dashed #e3e3e3;border-radius:12px;padding:10px 14px;background:#fafafa;margin-bottom:10px}
-    .format-title{font-size:.9rem;color:#2a2a2a;margin:0 0 6px;font-weight:700}
-    .chiplist{display:flex;flex-wrap:wrap;gap:10px;padding:8px 0 2px;margin:0;list-style:none}
-    .chiplink{display:inline-block;padding:8px 12px;border:1px solid #e0e0e0;border-radius:999px;background:#fff;font-size:.9rem;color:var(--primary-color);text-decoration:none;cursor:pointer}
-    .chiplink:hover{background:var(--primary-color);color:#fff;border-color:var(--primary-color)}
-
-    .downloads-card.collapsed .card-body{display:none}
-
-    .filter-container {
-      display: grid;
-      grid-template-columns: repeat(12, 1fr);
-      gap: 8px;
-      align-items: end;
-    }
-
-    .filter-row-middle {
-      grid-column: 1 / -1;
-      display: none;
-      grid-template-columns: repeat(12, 1fr);
-      gap: 8px;
-      align-items: end;
-      margin-top: 8px;
-      padding-top: 8px;
-      
-    }
-
-    /* Quando UC está selecionado, mostra a linha do meio */
-    .filter-container.uc-selected .filter-row-middle {
-      display: grid;
-    }
-
-    /* Esconde os filtros de UC por padrão */
-    #ucFiltersGroup {
-      display: none;
-    }
-
-    /* Mostra os filtros de UC quando UC está selecionado */
-    .filter-container.uc-selected #ucFiltersGroup {
-      display: contents;
-    }
-
-    /* Esconde Ano e Trimestre quando UC está selecionado (eles vão para a linha do meio) */
-    .filter-container.uc-selected #yearFilterWrapper,
-    .filter-container.uc-selected #quarterFilterWrapper {
-      display: none;
-    }
-
-    /* Destaque para filtros ativos */
-    .filter-active .form-label {
-      color: var(--primary-color);
-      font-weight: 700;
-    }
-    .filter-active select {
-      border-color: var(--primary-color);
-      box-shadow: 0 0 0 2px rgba(0, 128, 85, 0.1);
-    }
-
-    /* Pop-up customizado */
-    .custom-popup {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: white;
-      padding: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-      z-index: 10000;
-      text-align: center;
-      min-width: 300px;
-      border: 2px solid #008055;
-    }
-
-    .popup-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.5);
-      z-index: 9999;
-    }
-
-    .popup-close {
-      position: absolute;
-      top: 10px;
-      right: 15px;
-      background: none;
-      border: none;
-      font-size: 1.5rem;
-      cursor: pointer;
-      color: #666;
-    }
-
-    @media(max-width:576px){
-      .filter-container{grid-template-columns:repeat(2,1fr)}
-      .span-2{grid-column:span 2}
-      .filter-row-middle {
-        grid-template-columns: repeat(2, 1fr);
+    <style>
+      :root{
+        --primary-color:#008055; --primary-dark:#003300; --accent-color:#FF6D00;
+        --text-color:#212121; --background-color:#F5F5F5; --card-color:#FFFFFF;
+        --border-radius:12px; --box-shadow:0 6px 24px rgba(0,0,0,.08);
+        --pressao-red:#c62828; --ameaca-orange:#FF6D00;
       }
-    }
-  </style>
-</head>
-<body>
-  <!-- Overlay de carregamento -->
-  <div id="loader-overlay" style="position:fixed;inset:0;background:rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;z-index:9999">
-    <div class="bg-white p-4 rounded-4 shadow text-center">
-      <div class="spinner-border" role="status" style="width:3rem;height:3rem;color:#008055"></div>
-      <div class="loader-text mt-2">Carregando Dados...</div>
+      body,.btn,.form-select,.form-control,.stat-card,.card-header{font-family:'Montserrat',sans-serif!important}
+      body{background:var(--background-color);color:var(--text-color);padding:1rem;margin:0;min-width:320px}
+      .dashboard-header{ text-align:center;margin-bottom:1rem;background:var(--card-color);padding:1.25rem;border-radius:var(--border-radius);box-shadow:var(--box-shadow) }
+      .card{border-radius:var(--border-radius);box-shadow:var(--box-shadow);border:none;height:100%;transition:.3s}
+      .card:hover{transform:translateY(-5px)}
+      .card-header{
+        background:var(--card-color)!important;color:var(--primary-dark)!important;font-weight:700!important;
+        border-bottom:2px solid var(--accent-color)!important;padding:.9rem 1.1rem;min-height:56px;
+        display:flex;align-items:center;justify-content:space-between;gap:.75rem
+      }
+      .card-title-wrap{display:flex;align-items:center;gap:.5rem;min-width:0}
+      .card-title-wrap span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+      /* FILTROS */
+      .filter-section{background:var(--card-color);padding:1.5rem;border-radius:var(--border-radius);box-shadow:var(--box-shadow);margin-bottom:2rem}
+      .filter-container{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;align-items:end}
+      .filter-item{display:flex;flex-direction:column;gap:6px}
+      .span-2{grid-column:span 2}
+      .form-select,.form-control{height:42px;border-radius:8px;border:1px solid #ddd}
+      .btn-primary{height:42px;background:var(--primary-color);border-color:var(--primary-color);border-radius:8px;font-weight:600}
+      .btn-primary:hover{background:var(--primary-dark);border-color:var(--primary-dark)}
+      .btn-secondary{height:42px;border-radius:8px;font-weight:600}
+
+      .current-dashboard{background:var(--primary-color);color:#fff;padding:6px 14px;border-radius:22px;font-weight:700;text-align:center;margin-bottom:10px}
+
+      #map{height:460px;width:100%;border-radius:var(--border-radius);box-shadow:inset 0 0 10px rgba(0,0,0,.1)}
+      .chart-container{position:relative;height:460px;width:100%}
+
+      .stat-card{background:var(--primary-color);color:#fff;border-radius:10px;padding:15px;margin-bottom:15px;box-shadow:0 4px 8px rgba(0,0,0,.1)}
+      .stat-label{font-size:.9rem;opacity:.9}.stat-value{font-size:1.8rem;font-weight:700;margin:5px 0}
+      .data-table-container{overflow-x:auto;border-radius:var(--border-radius);box-shadow:0 2px 10px rgba(0,0,0,.05)}
+      #data-table{width:100%}
+      #data-table th{background:var(--primary-dark);color:#fff;font-weight:600;padding:12px}
+      #data-table td{padding:12px;border-bottom:1px solid #eee}
+      #data-table tr:nth-child(even){background:#f9f9f9}
+      #data-table tr:hover{background:#f0faf7}
+
+      .donut-card .card-body{display:flex;flex-direction:column;gap:12px;height:420px}
+      .legend-grid{display:flex;flex-direction:column;gap:8px;max-height:140px;overflow:auto;padding-right:4px}
+      .legend-item{background:#f8f9fa;border:1px solid #e9ecef;border-radius:10px;padding:8px 10px;font-size:12px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;cursor:pointer;transition:.2s;width:100%;text-align:left}
+      .legend-left{display:flex;align-items:flex-start;gap:10px;min-width:0;flex:1 1 auto}
+      .legend-box{width:14px;height:14px;border-radius:3px;display:inline-block;flex:0 0 14px}
+      .legend-label{font-weight:600;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.25;overflow-wrap:anywhere}
+      .legend-meta{font-variant-numeric:tabular-nums;opacity:.9;white-space:nowrap;margin-left:6px;align-self:flex-start}
+
+      @media (min-width: 992px){
+        .donut-card .card-body{flex-direction:row;align-items:stretch}
+        .donut-card .donut-chart-container{flex:0 0 56%;min-height:0;order:1}
+        .donut-card .legend-grid{flex:1 1 44%;max-height:100%;order:2;padding-right:6px}
+      }
+
+      @media (max-width:576px){#map{height:320px}.chart-container{height:320px}}
+      @media (min-width:1025px){.container-fluid{max-width:1400px;margin:0 auto}}
+
+      /* ===== Downloads — Ameaça e Pressão (novo padrão SAD) ===== */
+      .downloads-card .card-header{
+        display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; gap:12px; border-bottom:none!important;
+      }
+      .downloads-title{font-weight:700}
+
+      .collapse-btn{
+        position:relative;display:inline-flex;align-items:center;justify-content:center;
+        width:38px;height:38px;border-radius:999px;border:1px solid rgba(0,0,0,.08);
+        background:#fff;color:var(--primary-color);cursor:pointer;transition:all .18s ease;
+        box-shadow:0 2px 10px rgba(0,0,0,.05); justify-self:end;
+      }
+      .collapse-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,0,0,.08)}
+      .collapse-btn i{font-size:15px;transition:transform .25s ease}
+      .downloads-card.collapsed .collapse-btn i{transform:rotate(180deg)}
+
+      .typebar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-self:center}
+      .typebtn{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;border:1px solid #e0e0e0;background:#fff;color:#2b2b2b;cursor:pointer;font-weight:600}
+      .typebtn:hover{border-color:var(--primary-color)}
+      .typebtn.active{background:var(--primary-color);color:#fff;border-color:var(--primary-color)}
+      .typebtn i{font-size:14px}
+
+      .list-divider{list-style:none;padding:8px 0 0;margin:0}
+      .list-divider > li{padding:10px 0;border-bottom:1px solid #eee}
+      .list-divider > li:last-child{border-bottom:none}
+      details{border:1px solid #e8e8e8;border-radius:12px;margin:10px 0;background:#fff}
+      summary{cursor:pointer;list-style:none;padding:12px 16px;font-weight:700}
+      summary::-webkit-details-marker{display:none}
+      .year{font-weight:700}
+      .format-wrap{display:block;padding:0 16px 12px}
+      .format-card{border:1px dashed #e3e3e3;border-radius:12px;padding:10px 14px;background:#fafafa;margin-bottom:10px}
+      .format-title{font-size:.9rem;color:#2a2a2a;margin:0 0 6px;font-weight:700}
+      .chiplist{display:flex;flex-wrap:wrap;gap:10px;padding:8px 0 2px;margin:0;list-style:none}
+      .chiplink{display:inline-block;padding:8px 12px;border:1px solid #e0e0e0;border-radius:999px;background:#fff;font-size:.9rem;color:var(--primary-color);text-decoration:none;cursor:pointer}
+      .chiplink:hover{background:var(--primary-color);color:#fff;border-color:var(--primary-color)}
+
+      .downloads-card.collapsed .card-body{display:none}
+
+      .filter-container {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 8px;
+        align-items: end;
+      }
+
+      .filter-row-middle {
+        grid-column: 1 / -1;
+        display: none;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 8px;
+        align-items: end;
+        margin-top: 8px;
+        padding-top: 8px;
+        
+      }
+
+      /* Quando UC está selecionado, mostra a linha do meio */
+      .filter-container.uc-selected .filter-row-middle {
+        display: grid;
+      }
+
+      /* Esconde os filtros de UC por padrão */
+      #ucFiltersGroup {
+        display: none;
+      }
+
+      /* Mostra os filtros de UC quando UC está selecionado */
+      .filter-container.uc-selected #ucFiltersGroup {
+        display: contents;
+      }
+
+      /* Esconde Ano e Trimestre quando UC está selecionado (eles vão para a linha do meio) */
+      .filter-container.uc-selected #yearFilterWrapper,
+      .filter-container.uc-selected #quarterFilterWrapper {
+        display: none;
+      }
+
+      /* Destaque para filtros ativos */
+      .filter-active .form-label {
+        color: var(--primary-color);
+        font-weight: 700;
+      }
+      .filter-active select {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 2px rgba(0, 128, 85, 0.1);
+      }
+
+      /* Pop-up customizado */
+      .custom-popup {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        z-index: 10000;
+        text-align: center;
+        min-width: 300px;
+        border: 2px solid #008055;
+      }
+
+      .popup-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 9999;
+      }
+
+      .popup-close {
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #666;
+      }
+
+      @media(max-width:576px){
+        .filter-container{grid-template-columns:repeat(2,1fr)}
+        .span-2{grid-column:span 2}
+        .filter-row-middle {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Overlay de carregamento -->
+    <div id="loader-overlay" style="position:fixed;inset:0;background:rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;z-index:9999">
+      <div class="bg-white p-4 rounded-4 shadow text-center">
+        <div class="spinner-border" role="status" style="width:3rem;height:3rem;color:#008055"></div>
+        <div class="loader-text mt-2">Carregando Dados...</div>
+      </div>
     </div>
-  </div>
 
-  <div class="container-fluid">
-    <div class="dashboard-header">
-      <img src="../../img/ameaca_e_pressao.png" alt="Logo Ameaça e Pressão" style="max-width:150px;height:auto;display:block;margin:0 auto">
-    </div>
+    <div class="container-fluid">
+      <div class="dashboard-header">
+        <img src="../../img/ameaca_e_pressao.png" alt="Logo Ameaça e Pressão" style="max-width:150px;height:auto;display:block;margin:0 auto">
+      </div>
 
-    <!-- Filtros - ESTRUTURA CORRIGIDA -->
-    <div class="filter-section">
-      <div class="filter-container">
-        <!-- Ameaça e Pressão -->
-        <div class="filter-item span-2">
-          <label class="form-label fw-bold" for="typeFilter">Ameaça e Pressão</label>
-          <select id="typeFilter" class="form-select">
-            <option value="ameaca">Ameaça</option>
-            <option value="pressao">Pressão</option>
-            <option value="Todos">Todos</option>
-          </select>
-        </div>
-
-        <!-- Estado -->
-        <div class="filter-item span-2">
-          <label class="form-label fw-semibold" for="stateFilter">Estado</label>
-          <select id="stateFilter" class="form-select">
-            <option value="all">Amazônia Legal</option>
-          </select>
-        </div>
-
-        <!-- Modalidade Territorial -->
-        <div class="filter-item span-2">
-          <label class="form-label fw-semibold" for="areaFilter">Modalidade Territorial</label>
-          <select id="areaFilter" class="form-select">
-            <option value="all">Todos</option>
-            <option value="ti">Terras Indígenas</option>
-            <option value="uc">Unidades de Conservação</option>
-          </select>
-        </div>
-
-        <!-- Filtros específicos para UC - Agrupados -->
-        <div id="ucFiltersGroup">
-          <!-- Jurisdição vai no lugar do ANO -->
+      <!-- Filtros - ESTRUTURA CORRIGIDA -->
+      <div class="filter-section">
+        <div class="filter-container">
+          <!-- Ameaça e Pressão -->
           <div class="filter-item span-2">
-            <label class="form-label fw-semibold" for="jurisdictionFilter">Jurisdição</label>
-            <select id="jurisdictionFilter" class="form-select">
-              <option value="all">Todas</option>
-              <option value="Federal">Federal</option>
-              <option value="Estadual">Estadual</option>
+            <label class="form-label fw-bold" for="typeFilter">Ameaça e Pressão</label>
+            <select id="typeFilter" class="form-select">
+              <option value="ameaca">Ameaça</option>
+              <option value="pressao">Pressão</option>
+              <option value="Todos">Todos</option>
             </select>
           </div>
 
-          <!-- Categoria vai no lugar do TRIMESTRE -->
+          <!-- Estado -->
           <div class="filter-item span-2">
-            <label class="form-label fw-semibold" for="categoryFilter">Categoria</label>
-            <select id="categoryFilter" class="form-select">
+            <label class="form-label fw-semibold" for="stateFilter">Estado</label>
+            <select id="stateFilter" class="form-select">
+              <option value="all">Amazônia Legal</option>
+            </select>
+          </div>
+
+          <!-- Modalidade Territorial -->
+          <div class="filter-item span-2">
+            <label class="form-label fw-semibold" for="areaFilter">Modalidade Territorial</label>
+            <select id="areaFilter" class="form-select">
               <option value="all">Todos</option>
+              <option value="ti">Terras Indígenas</option>
+              <option value="uc">Unidades de Conservação</option>
             </select>
           </div>
 
-          <!-- Tipo de Uso (adicional) -->
-          <div class="filter-item span-2">
-            <label class="form-label fw-semibold" for="usoFilter">Tipo de Uso</label>
-            <select id="usoFilter" class="form-select">
-              <option value="all">Todos</option>
-            </select>
+          <!-- Filtros específicos para UC - Agrupados -->
+          <div id="ucFiltersGroup">
+            <!-- Jurisdição vai no lugar do ANO -->
+            <div class="filter-item span-2">
+              <label class="form-label fw-semibold" for="jurisdictionFilter">Jurisdição</label>
+              <select id="jurisdictionFilter" class="form-select">
+                <option value="all">Todas</option>
+                <option value="Federal">Federal</option>
+                <option value="Estadual">Estadual</option>
+              </select>
+            </div>
+
+            <!-- Categoria vai no lugar do TRIMESTRE -->
+            <div class="filter-item span-2">
+              <label class="form-label fw-semibold" for="categoryFilter">Categoria</label>
+              <select id="categoryFilter" class="form-select">
+                <option value="all">Todos</option>
+              </select>
+            </div>
+
+            <!-- Tipo de Uso (adicional) -->
+            <div class="filter-item span-2">
+              <label class="form-label fw-semibold" for="usoFilter">Tipo de Uso</label>
+              <select id="usoFilter" class="form-select">
+                <option value="all">Todos</option>
+              </select>
+            </div>
           </div>
-        </div>
 
-        <!-- Ano (normalmente visível, exceto quando UC está selecionado) -->
-        <div class="filter-item span-2" id="yearFilterWrapper">
-          <label class="form-label fw-semibold" for="yearFilter">Ano</label>
-          <select id="yearFilter" class="form-select">
-            <option value="all">Todos os Anos</option>
-          </select>
-        </div>
-
-        <!-- Trimestre (normalmente visível, exceto quando UC está selecionado) -->
-        <div class="filter-item span-2" id="quarterFilterWrapper">
-          <label class="form-label fw-semibold" for="quarterFilter">Trimestre</label>
-          <select id="quarterFilter" class="form-select">
-            <option value="all">Todos os Trimestres</option>
-          </select>
-        </div>
-
-        <!-- Linha do meio que aparece apenas quando UC está selecionado -->
-        <div class="filter-row-middle">
-          <!-- Ano vai para a linha do meio quando UC está selecionado -->
-          <div class="filter-item span-2">
-            <label class="form-label fw-semibold" for="yearFilterMiddle">Ano</label>
-            <select id="yearFilterMiddle" class="form-select">
+          <!-- Ano (normalmente visível, exceto quando UC está selecionado) -->
+          <div class="filter-item span-2" id="yearFilterWrapper">
+            <label class="form-label fw-semibold" for="yearFilter">Ano</label>
+            <select id="yearFilter" class="form-select">
               <option value="all">Todos os Anos</option>
             </select>
           </div>
 
-          <!-- Trimestre vai para a linha do meio quando UC está selecionado -->
-          <div class="filter-item span-2">
-            <label class="form-label fw-semibold" for="quarterFilterMiddle">Trimestre</label>
-            <select id="quarterFilterMiddle" class="form-select">
+          <!-- Trimestre (normalmente visível, exceto quando UC está selecionado) -->
+          <div class="filter-item span-2" id="quarterFilterWrapper">
+            <label class="form-label fw-semibold" for="quarterFilter">Trimestre</label>
+            <select id="quarterFilter" class="form-select">
               <option value="all">Todos os Trimestres</option>
             </select>
           </div>
 
-          <!-- Espaços vazios para completar a linha -->
-          <div class="filter-item span-2"></div>
-          <div class="filter-item span-2"></div>
-          <div class="filter-item span-2"></div>
-          <div class="filter-item span-2"></div>
-        </div>
-
-        <!-- Botões -->
-        <div class="filter-item span-2">
-          <label class="form-label fw-semibold">&nbsp;</label>
-          <button id="applyFilters" class="btn btn-primary w-100">
-            <i class="fas fa-filter me-1"></i> Aplicar Filtro
-          </button>
-        </div>
-        <div class="filter-item span-2">
-          <label class="form-label fw-semibold">&nbsp;</label>
-          <button id="clearFilters" class="btn btn-secondary w-100">
-            <i class="fas fa-eraser me-1"></i> Limpar Filtros
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Resto do código permanece igual -->
-    <!-- Estatísticas -->
-    <div class="row mb-4">
-      <div class="col-md-3"><div class="stat-card"><div class="stat-label">Total de Células com Desmatamento</div><div class="stat-value" id="total-records">0</div></div></div>
-      <div class="col-md-3"><div class="stat-card" style="background:#FF6D00"><div class="stat-label">Quantiade Média de Células</div><div class="stat-value" id="total-cells">0</div></div></div>
-      <div class="col-md-3"><div class="stat-card" style="background:#c62828"><div class="stat-label">Número de Áreas Afetadas</div><div class="stat-value" id="filtered-records">0</div></div></div>
-      <div class="col-md-3"><div class="stat-card" style="background:#6c757d"><div class="stat-label">Variação Anual</div><div class="stat-value" id="unique-states">0</div></div></div>
-    </div>
-
-    <!-- Ranking (esq) e Mapa (dir) -->
-    <div class="row mb-4">
-      <div class="col-lg-6">
-        <div class="card h-100">
-          <div class="card-header">
-            <div class="card-title-wrap">
-              <i class="fas fa-chart-bar me-2"></i>
-              <span id="rank-card-title">Ranking das 10 Áreas Protegidas mais Pressionadas</span>
+          <!-- Linha do meio que aparece apenas quando UC está selecionado -->
+          <div class="filter-row-middle">
+            <!-- Ano vai para a linha do meio quando UC está selecionado -->
+            <div class="filter-item span-2">
+              <label class="form-label fw-semibold" for="yearFilterMiddle">Ano</label>
+              <select id="yearFilterMiddle" class="form-select">
+                <option value="all">Todos os Anos</option>
+              </select>
             </div>
-          </div>
-          <div class="card-body">
-            <div class="chart-container"><canvas id="barChart"></canvas></div>
-          </div>
-        </div>
-      </div>
-      <div class="col-lg-6">
-        <div class="card h-100">
-          <div class="card-header">
-            <div class="card-title-wrap">
-              <i class="fas fa-map-marked-alt me-2"></i>
-              <span id="map-card-title">Mapa das Áreas Protegidas mais Pressionadas</span>
-            </div>
-          </div>
-          <div class="card-body"><div id="map"></div></div>
-        </div>
-      </div>
-    </div>
 
-    <!-- Donuts 2x2 -->
-    <div id="donuts-block">
-      <div id="donuts-row-1" class="row mb-4">
-        <div id="donut-col-1" class="col-lg-6 col-md-12">
-          <div class="card donut-card h-100">
+            <!-- Trimestre vai para a linha do meio quando UC está selecionado -->
+            <div class="filter-item span-2">
+              <label class="form-label fw-semibold" for="quarterFilterMiddle">Trimestre</label>
+              <select id="quarterFilterMiddle" class="form-select">
+                <option value="all">Todos os Trimestres</option>
+              </select>
+            </div>
+
+            <!-- Espaços vazios para completar a linha -->
+            <div class="filter-item span-2"></div>
+            <div class="filter-item span-2"></div>
+            <div class="filter-item span-2"></div>
+            <div class="filter-item span-2"></div>
+          </div>
+
+          <!-- Botões -->
+          <div class="filter-item span-2">
+            <label class="form-label fw-semibold">&nbsp;</label>
+            <button id="applyFilters" class="btn btn-primary w-100">
+              <i class="fas fa-filter me-1"></i> Aplicar Filtro
+            </button>
+          </div>
+          <div class="filter-item span-2">
+            <label class="form-label fw-semibold">&nbsp;</label>
+            <button id="clearFilters" class="btn btn-secondary w-100">
+              <i class="fas fa-eraser me-1"></i> Limpar Filtros
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resto do código permanece igual -->
+      <!-- Estatísticas -->
+      <div class="row mb-4">
+        <div class="col-md-4"><div class="stat-card"><div class="stat-label">Total de Células com Desmatamento</div><div class="stat-value" id="total-records">0</div></div></div>
+        <div class="col-md-4"><div class="stat-card" style="background:#FF6D00"><div class="stat-label">Quantiade Média de Células</div><div class="stat-value" id="total-cells">0</div></div></div>
+        <div class="col-md-4"><div class="stat-card" style="background:#c62828"><div class="stat-label">Número de Áreas Afetadas</div><div class="stat-value" id="filtered-records">0</div></div></div>
+      </div>
+
+      <!-- Ranking (esq) e Mapa (dir) -->
+      <div class="row mb-4">
+        <div class="col-lg-6">
+          <div class="card h-100">
             <div class="card-header">
-              <div class="card-title-wrap"><i class="fas fa-chart-pie me-2"></i><span>Distribuição por Uso</span></div>
+              <div class="card-title-wrap">
+                <i class="fas fa-chart-bar me-2"></i>
+                <span id="rank-card-title">Ranking das 10 Áreas Protegidas mais Pressionadas</span>
+              </div>
             </div>
             <div class="card-body">
-              <div id="legend-donutChart1" class="legend-grid"></div>
-              <div class="donut-chart-container"><canvas id="donutChart1"></canvas></div>
+              <div class="chart-container"><canvas id="barChart"></canvas></div>
             </div>
           </div>
         </div>
-        <div id="donut-col-2" class="col-lg-6 col-md-12">
-          <div class="card donut-card h-100">
+        <div class="col-lg-6">
+          <div class="card h-100">
             <div class="card-header">
-              <div class="card-title-wrap"><i class="fas fa-chart-pie me-2"></i><span>Distribuição por Estado</span></div>
+              <div class="card-title-wrap">
+                <i class="fas fa-map-marked-alt me-2"></i>
+                <span id="map-card-title">Mapa das Áreas Protegidas mais Pressionadas</span>
+              </div>
             </div>
-            <div class="card-body">
-              <div id="legend-donutChart2" class="legend-grid"></div>
-              <div class="donut-chart-container"><canvas id="donutChart2"></canvas></div>
+            <div class="card-body"><div id="map"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Donuts 2x2 -->
+      <div id="donuts-block">
+        <div id="donuts-row-1" class="row mb-4">
+          <div id="donut-col-1" class="col-lg-6 col-md-12">
+            <div class="card donut-card h-100">
+              <div class="card-header">
+                <div class="card-title-wrap"><i class="fas fa-chart-pie me-2"></i><span>Distribuição por Uso</span></div>
+              </div>
+              <div class="card-body">
+                <div id="legend-donutChart1" class="legend-grid"></div>
+                <div class="donut-chart-container"><canvas id="donutChart1"></canvas></div>
+              </div>
+            </div>
+          </div>
+          <div id="donut-col-2" class="col-lg-6 col-md-12">
+            <div class="card donut-card h-100">
+              <div class="card-header">
+                <div class="card-title-wrap"><i class="fas fa-chart-pie me-2"></i><span>Distribuição por Estado</span></div>
+              </div>
+              <div class="card-body">
+                <div id="legend-donutChart2" class="legend-grid"></div>
+                <div class="donut-chart-container"><canvas id="donutChart2"></canvas></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="donuts-row-2" class="row mb-4">
+          <div id="donut-col-3" class="col-lg-6 col-md-12">
+            <div class="card donut-card h-100">
+              <div class="card-header">
+                <div class="card-title-wrap"><i class="fas fa-chart-pie me-2"></i><span>Distribuição por Modalidade</span></div>
+              </div>
+              <div class="card-body">
+                <div id="legend-donutChart3" class="legend-grid"></div>
+                <div class="donut-chart-container"><canvas id="donutChart3"></canvas></div>
+              </div>
+            </div>
+          </div>
+          <div id="donut-col-4" class="col-lg-6 col-md-12">
+            <div class="card donut-card h-100">
+              <div class="card-header">
+                <div class="card-title-wrap"><i class="fas fa-chart-pie me-2"></i><span>Distribuição por Categoria</span></div>
+              </div>
+              <div class="card-body">
+                <div id="legend-donutChart4" class="legend-grid"></div>
+                <div class="donut-chart-container"><canvas id="donutChart4"></canvas></div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-      <div id="donuts-row-2" class="row mb-4">
-        <div id="donut-col-3" class="col-lg-6 col-md-12">
-          <div class="card donut-card h-100">
-            <div class="card-header">
-              <div class="card-title-wrap"><i class="fas fa-chart-pie me-2"></i><span>Distribuição por Modalidade</span></div>
-            </div>
-            <div class="card-body">
-              <div id="legend-donutChart3" class="legend-grid"></div>
-              <div class="donut-chart-container"><canvas id="donutChart3"></canvas></div>
-            </div>
+
+      <!-- Downloads — Ameaça e Pressão (novo padrão SAD) -->
+      <div class="card mt-3 downloads-card collapsed" id="downloads-ap-card" aria-live="polite">
+        <div class="card-header">
+          <!-- Esquerda: título -->
+          <div class="downloads-title">Downloads</div>
+
+          <!-- Centro: botões de tipo -->
+          <div class="typebar" id="ap-typebar" role="tablist" aria-label="Tipos de arquivo do Ameaça e Pressão">
+            <button class="typebtn active" data-type="geojson" role="tab" aria-selected="true" title="Trimestral">
+              <i class="fa-regular fa-map"></i> GeoJSON
+            </button>
+            <button class="typebtn" data-type="csv" role="tab" aria-selected="false" title="">
+              <i class="fa-regular fa-file-lines"></i> CSV
+            </button>
+            <button class="typebtn" data-type="shp" role="tab" aria-selected="false" title="">
+              <i class="fa-regular fa-file-zipper"></i> Shapefile
+            </button>
           </div>
+
+          <!-- Direita: seta (expandir/recolher) -->
+          <button class="collapse-btn" id="downloads-ap-toggle" title="Expandir / Recolher"
+                  aria-expanded="false" aria-controls="downloads-ap-body">
+            <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
+          </button>
         </div>
-        <div id="donut-col-4" class="col-lg-6 col-md-12">
-          <div class="card donut-card h-100">
-            <div class="card-header">
-              <div class="card-title-wrap"><i class="fas fa-chart-pie me-2"></i><span>Distribuição por Categoria</span></div>
-            </div>
-            <div class="card-body">
-              <div id="legend-donutChart4" class="legend-grid"></div>
-              <div class="donut-chart-container"><canvas id="donutChart4"></canvas></div>
-            </div>
-          </div>
+        <div class="card-body" id="downloads-ap-body">
+          <ul id="ap-downloads-list" class="list-divider"><li class="muted">Carregando anos...</li></ul>
         </div>
       </div>
     </div>
 
-    <!-- Downloads — Ameaça e Pressão (novo padrão SAD) -->
-    <div class="card mt-3 downloads-card collapsed" id="downloads-ap-card" aria-live="polite">
-      <div class="card-header">
-        <!-- Esquerda: título -->
-        <div class="downloads-title">Downloads</div>
+    <!-- JS libs -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/2.0.3/js/dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/3.0.1/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/3.0.1/js/buttons.html5.min.js"></script>
 
-        <!-- Centro: botões de tipo -->
-        <div class="typebar" id="ap-typebar" role="tablist" aria-label="Tipos de arquivo do Ameaça e Pressão">
-          <button class="typebtn active" data-type="geojson" role="tab" aria-selected="true" title="Trimestral">
-            <i class="fa-regular fa-map"></i> GeoJSON
-          </button>
-          <button class="typebtn" data-type="csv" role="tab" aria-selected="false" title="">
-            <i class="fa-regular fa-file-lines"></i> CSV
-          </button>
-          <button class="typebtn" data-type="shp" role="tab" aria-selected="false" title="">
-            <i class="fa-regular fa-file-zipper"></i> Shapefile
-          </button>
-        </div>
-
-        <!-- Direita: seta (expandir/recolher) -->
-        <button class="collapse-btn" id="downloads-ap-toggle" title="Expandir / Recolher"
-                aria-expanded="false" aria-controls="downloads-ap-body">
-          <i class="fa-solid fa-angle-down" aria-hidden="true"></i>
-        </button>
-      </div>
-      <div class="card-body" id="downloads-ap-body">
-        <ul id="ap-downloads-list" class="list-divider"><li class="muted">Carregando anos...</li></ul>
-      </div>
-    </div>
-  </div>
-
-  <!-- JS libs -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
-  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-  <script src="https://cdn.datatables.net/2.0.3/js/dataTables.min.js"></script>
-  <script src="https://cdn.datatables.net/buttons/3.0.1/js/dataTables.buttons.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.min.js"></script>
-  <script src="https://cdn.datatables.net/buttons/3.0.1/js/buttons.html5.min.js"></script>
-
-  <script>
-  // ========================
-  // CONFIG – Bases de download na AWS
-  // ========================
-  const AP_DOWNLOAD_BASE = "https://imazongeo3-web.s3.sa-east-1.amazonaws.com";
-  const AP_PREFIX = "/ameaca_e_pressao";
-  function getApBase() {
-    const base = (window.__AP_DOWNLOAD_BASE || AP_DOWNLOAD_BASE || "").replace(/\/+$/,"");
-    const pref = (window.__AP_PREFIX || AP_PREFIX || "").replace(/\/+$/,"");
-    return { base, pref: pref ? (pref.startsWith("/") ? pref : `/${pref}`) : "" };
-  }
-  function apTypeBase(type) {
-    const { base, pref } = getApBase();
-    const t = (type === "csv") ? "csv" : (type === "shp" ? "shapefile" : "geojson");
-    return `${base}${pref}/${t}`;
-  }
-  function apUrlFromBase(fileBase, type = AP_SELECTED_TYPE) {
-    return `${apTypeBase(type)}/${fileBase}.${type === "shp" ? "zip" : type}`;
-  }
-
-  /* ========================
-     Utilidades gerais
-  ======================== */
-  function mapAcronymLabel(val){
-    const l = String(val ?? '').toLowerCase();
-    if (l === 'ucf') return 'Unidade de Conservação Federal';
-    if (l === 'uce') return 'Unidade de Conservação Estadual';
-    if (l === 'ti')  return 'Terras Indígenas';
-    return val;
-  }
-
-  /* ===== Estados (UF) ===== */
-  const UF_NAMES = {
-    AC:'Acre', AL:'Alagoas', AP:'Amapá', AM:'Amazonas', BA:'Bahia', CE:'Ceará',
-    DF:'Distrito Federal', ES:'Espírito Santo', GO:'Goiás', MA:'Maranhão',
-    MT:'Mato Grosso', MS:'Mato Grosso do Sul', MG:'Minas Gerais', PA:'Pará',
-    PB:'Paraíba', PR:'Paraná', PE:'Pernambuco', PI:'Piauí', RJ:'Rio de Janeiro',
-    RN:'Rio Grande do Norte', RS:'Rio Grande do Sul', RO:'Rondônia', RR:'Roraima',
-    SC:'Santa Catarina', SP:'São Paulo', SE:'Sergipe', TO:'Tocantins'
-  };
-
-  function stripAccents(s){ return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
-  function ufCodeToName(code){ return UF_NAMES[code] || code; }
-  function tokenToUF(token){
-    if(!token) return null;
-    const t = String(token).trim();
-    const up = t.toUpperCase();
-    if (UF_NAMES[up]) return up; // já é sigla
-    const norm = stripAccents(t).toUpperCase();
-    for (const [code, name] of Object.entries(UF_NAMES)){
-      if (stripAccents(name).toUpperCase() === norm) return code;
+    <script>
+    // ========================
+    // CONFIG – Bases de download na AWS
+    // ========================
+    const AP_DOWNLOAD_BASE = "https://imazongeo3-web.s3.sa-east-1.amazonaws.com";
+    const AP_PREFIX = "/ameaca_e_pressao";
+    function getApBase() {
+      const base = (window.__AP_DOWNLOAD_BASE || AP_DOWNLOAD_BASE || "").replace(/\/+$/,"");
+      const pref = (window.__AP_PREFIX || AP_PREFIX || "").replace(/\/+$/,"");
+      return { base, pref: pref ? (pref.startsWith("/") ? pref : `/${pref}`) : "" };
     }
-    return null;
-  }
-  function parseUFs(value){
-    if (value == null) return [];
-    const raw = String(value);
-    return Array.from(new Set(
-      raw.split(/[\/,;|+&]/).map(s=>tokenToUF(s)).filter(Boolean)
-    ));
-  }
-  function formatEstadoFull(value){
-    const codes = parseUFs(value);
-    if (!codes.length) return value || '-';
-    return codes.map(ufCodeToName).join(' / ');
-  }
-  function arraysEqualAsSets(a,b){
-    if (a.length !== b.length) return false;
-    const aa = a.slice().sort(); const bb = b.slice().sort();
-    return aa.every((v,i)=> v === bb[i]);
-  }
-
-  /* ========================
-     Chart.js plugins
-  ======================== */
-  Chart.register(ChartDataLabels);
-  const centerTextPlugin={id:'centerText',beforeDraw(chart){
-    const {ctx,chartArea}=chart;if(!chartArea) return;
-    const opts=chart.config.options.plugins.centerText||{};
-    const text=opts.text||'', color=opts.color||'#28a745', base=opts.fontSize||20, fam=opts.fontFamily||'Montserrat', weight=opts.fontWeight||'700';
-    const w=chartArea.right - chartArea.left, h=chartArea.bottom - chartArea.top, size=Math.max(16,Math.min(base,Math.min(w,h)*.12));
-    ctx.save();ctx.fillStyle=color;ctx.font=`${weight} ${size}px ${fam}`;ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText(text,chartArea.left+w/2,chartArea.top+h/2);ctx.restore();
-  }};
-  const htmlLegendPlugin = {
-    id: 'htmlLegend',
-    afterUpdate(chart, args, options) {
-      const id = options?.containerID; if (!id) return;
-      const el = document.getElementById(id); if (!el) return;
-
-      el.innerHTML = '';
-      el.classList.add('legend-grid');
-
-      const labels = chart.data.labels || [];
-      const theDs = chart.data.datasets?.[0] || { data: [], backgroundColor: [] };
-      const total = (theDs.data || []).reduce((a, b) => a + Number(b || 0), 0);
-
-      labels.forEach((label, i) => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'legend-item';
-
-        const left = document.createElement('span');
-        left.className = 'legend-left';
-
-        const box = document.createElement('span');
-        box.className = 'legend-box';
-        box.style.background = theDs.backgroundColor?.[i] || '#999';
-
-        const name = document.createElement('span');
-        name.className = 'legend-label';
-        name.textContent = label;
-        name.title = label;
-
-        left.appendChild(box);
-        left.appendChild(name);
-
-        const v = Number(theDs.data?.[i] || 0);
-        const pct = total ? Math.round((v / total) * 100) : 0;
-
-        const meta = document.createElement('span');
-        meta.className = 'legend-meta';
-        meta.textContent = `${v.toLocaleString('pt-BR')} (${pct}%)`;
-
-        btn.appendChild(left);
-        btn.appendChild(meta);
-
-        btn.onclick = () => {
-          const hidden = chart.getDataVisibility(i) === false;
-          chart.toggleDataVisibility(i);
-          btn.style.opacity = hidden ? '1' : '0.5';
-          chart.update();
-        };
-        btn.style.opacity = chart.getDataVisibility(i) === false ? '0.5' : '1';
-
-        el.appendChild(btn);
-      });
+    function apTypeBase(type) {
+      const { base, pref } = getApBase();
+      const t = (type === "csv") ? "csv" : (type === "shp" ? "shapefile" : "geojson");
+      return `${base}${pref}/${t}`;
     }
-  };
-  Chart.register(centerTextPlugin, htmlLegendPlugin);
-
-  /* ========================
-     Paletas (d3)
-  ======================== */
-  const DONUT1_PALETTE = ['#8db600', '#659000', '#a1c02c', '#c09713', '#80221b'];
-  const STATE_PALETTE = ['#8db600', '#bce444', '#e9a700', '#e5733d', '#ab625e'];
-  const MODALITY_PALETTE = ['#704214', '#6d3f11', '#6b9b5a', '#95bd6f', '#f69171'];
-  const CATEGORY_PALETTE = ['#867416', '#bea74b', '#f8de7e', '#feeeb8', '#fffff1'];
-  const categoryColor = d3.piecewise(d3.interpolateHcl, CATEGORY_PALETTE);
-  const modalityColor = d3.piecewise(d3.interpolateHcl, MODALITY_PALETTE);
-  const stateColor    = d3.piecewise(d3.interpolateHcl, STATE_PALETTE.slice().reverse());
-
-  /* ========================
-     Estado/variáveis globais
-  ======================== */
-  let map, geojsonLayer=null, geojsonData=null, filteredData=[], dataTable=null, barChart=null;
-  const chartsStore={};
-  const classColors={ameaca:'#FF6D00', pressao:'#c62828', Todos:'#008055'};
-  let currentClass = 'ameaca';
-  let currentFilter = null;     // null | 'ti' | 'uc' | 'allap'
-  let ucSubtype = 'all';        // 'all' | 'federal'/'estadual' (traduzido p/ ucf/uce)
-  let selectedYear = 2025;      // null = Todos
-  let selectedQuarter = null;   // null | 1..4
-  let selectedEstado = null;    // "AM" ou combo "AM/RO"
-  let selectedCategoria = null, selectedUso = null;
-  let AP_SELECTED_TYPE = 'geojson';
-
-  let featureLayerIndex = new Map();
-  let barItems = [];
-  let colorMap = new Map();
-
-  function getProp(p, ...names){ for(const k of names){ if(p && p[k]!=null && p[k]!=='') return p[k]; } return null; }
-  function mkKey(p){ const nome=getProp(p,'nome'); const estado=getProp(p,'estado'); return `${(nome||'').trim()}|${(estado||'').trim()}`; }
-  function fallbackColor(){ if (currentClass === 'Todos') return d3.interpolateGreys(0.6); if (currentClass === 'ameaca') return d3.interpolateOranges(0.6); return d3.interpolateReds(0.6); }
-  function getColorFor(p){ const key=mkKey(p||{}); return colorMap.get(key) || fallbackColor(); }
-
-  /* ========================
-     Ano / Trimestre / Legenda
-  ======================== */
-  function _norm(s){ return String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
-  function getYear(p = {}) { return p.ano ?? p.ANO ?? p.Ano ?? null; }
-  function getLegenda(p = {}) {
-    return p.legend ?? p.Legend ?? p.LEGEND ??
-           p.legenda ?? p.Legenda ?? p.LEGENDA ?? null;
-  }
-  function fixLegendDisplay(txt){
-    if (!txt) return txt;
-    let s = String(txt);
-    s = s.replace(/\bMARCO\b/g, 'MARÇO').replace(/\bMarco\b/g, 'Março').replace(/\bmarco\b/g, 'março');
-    s = s.replace(/m[êe]s\s*a\s*m[êe]s/gi, 'mês a mês');
-    if (!/\(mês a mês\)/i.test(s) && /mês a mês/i.test(s)) s = s.replace(/mês a mês/gi, '(mês a mês)');
-    return s;
-  }
-  function readQuarterFromValue(v){
-    if (v == null) return null;
-    const s = _norm(v);
-    if (/(^|[^a-z])t1|primeiro|1º|1o|jan|fev|mar|janeiro|fevereiro|março/.test(s)) return 1;
-    if (/(^|[^a-z])t2|segundo|2º|2o|abr|mai|jun|abril|maio|junho/.test(s)) return 2;
-    if (/(^|[^a-z])t3|terceiro|3º|3o|jul|ago|set|julho|agosto|setembro/.test(s)) return 3;
-    if (/(^|[^a-z])t4|quarto|4º|4o|out|nov|dez|outubro|novembro|dezembro/.test(s)) return 4;
-    const m = s.match(/([1-4])/);
-    return m ? Number(m[1]) : null;
-  }
-  function getQuarter(p = {}) {
-    const candNum = [
-      p.periodo, p.Periodo, p.PERIODO, p['Período'], p['PERÍODO'],
-      p.trimestre, p.Trimestre, p.TRIMESTRE, p.trim, p.tri,
-      p.legend, p.Legend, p.LEGEND
-    ];
-    for (const v of candNum){
-      const n = Number(v);
-      if (Number.isFinite(n) && n >= 1 && n <= 4) return n;
+    function apUrlFromBase(fileBase, type = AP_SELECTED_TYPE) {
+      return `${apTypeBase(type)}/${fileBase}.${type === "shp" ? "zip" : type}`;
     }
-    return readQuarterFromValue(getLegenda(p));
-  }
-  const DEFAULT_LEGENDS = {
-    1: 'janeiro a março', 2: 'abril a junho',
-    3: 'julho a setembro', 4: 'outubro a dezembro'
-  };
 
-  // --- Fallbacks de trimestre/legenda quando geojsonData ainda não estiver disponível ---
-  function quartersForDownloads(year){
-    // Se temos dados, usa os trimestres reais
-    if (geojsonData && geojsonData.features && geojsonData.features.length > 0) {
-      const feats = geojsonData.features;
+    /* ========================
+      Utilidades gerais
+    ======================== */
+    function mapAcronymLabel(val){
+      const l = String(val ?? '').toLowerCase();
+      if (l === 'ucf') return 'Unidade de Conservação Federal';
+      if (l === 'uce') return 'Unidade de Conservação Estadual';
+      if (l === 'ti')  return 'Terras Indígenas';
+      return val;
+    }
+
+    /* ===== Estados (UF) ===== */
+    const UF_NAMES = {
+      AC:'Acre', AL:'Alagoas', AP:'Amapá', AM:'Amazonas', BA:'Bahia', CE:'Ceará',
+      DF:'Distrito Federal', ES:'Espírito Santo', GO:'Goiás', MA:'Maranhão',
+      MT:'Mato Grosso', MS:'Mato Grosso do Sul', MG:'Minas Gerais', PA:'Pará',
+      PB:'Paraíba', PR:'Paraná', PE:'Pernambuco', PI:'Piauí', RJ:'Rio de Janeiro',
+      RN:'Rio Grande do Norte', RS:'Rio Grande do Sul', RO:'Rondônia', RR:'Roraima',
+      SC:'Santa Catarina', SP:'São Paulo', SE:'Sergipe', TO:'Tocantins'
+    };
+
+    function stripAccents(s){ return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+    function ufCodeToName(code){ return UF_NAMES[code] || code; }
+    function tokenToUF(token){
+      if(!token) return null;
+      const t = String(token).trim();
+      const up = t.toUpperCase();
+      if (UF_NAMES[up]) return up; // já é sigla
+      const norm = stripAccents(t).toUpperCase();
+      for (const [code, name] of Object.entries(UF_NAMES)){
+        if (stripAccents(name).toUpperCase() === norm) return code;
+      }
+      return null;
+    }
+    function parseUFs(value){
+      if (value == null) return [];
+      const raw = String(value);
+      return Array.from(new Set(
+        raw.split(/[\/,;|+&]/).map(s=>tokenToUF(s)).filter(Boolean)
+      ));
+    }
+    function formatEstadoFull(value){
+      const codes = parseUFs(value);
+      if (!codes.length) return value || '-';
+      return codes.map(ufCodeToName).join(' / ');
+    }
+    function arraysEqualAsSets(a,b){
+      if (a.length !== b.length) return false;
+      const aa = a.slice().sort(); const bb = b.slice().sort();
+      return aa.every((v,i)=> v === bb[i]);
+    }
+
+    /* ========================
+      Chart.js plugins
+    ======================== */
+    Chart.register(ChartDataLabels);
+    const centerTextPlugin={id:'centerText',beforeDraw(chart){
+      const {ctx,chartArea}=chart;if(!chartArea) return;
+      const opts=chart.config.options.plugins.centerText||{};
+      const text=opts.text||'', color=opts.color||'#28a745', base=opts.fontSize||20, fam=opts.fontFamily||'Montserrat', weight=opts.fontWeight||'700';
+      const w=chartArea.right - chartArea.left, h=chartArea.bottom - chartArea.top, size=Math.max(16,Math.min(base,Math.min(w,h)*.12));
+      ctx.save();ctx.fillStyle=color;ctx.font=`${weight} ${size}px ${fam}`;ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(text,chartArea.left+w/2,chartArea.top+h/2);ctx.restore();
+    }};
+    const htmlLegendPlugin = {
+      id: 'htmlLegend',
+      afterUpdate(chart, args, options) {
+        const id = options?.containerID; if (!id) return;
+        const el = document.getElementById(id); if (!el) return;
+
+        el.innerHTML = '';
+        el.classList.add('legend-grid');
+
+        const labels = chart.data.labels || [];
+        const theDs = chart.data.datasets?.[0] || { data: [], backgroundColor: [] };
+        const total = (theDs.data || []).reduce((a, b) => a + Number(b || 0), 0);
+
+        labels.forEach((label, i) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'legend-item';
+
+          const left = document.createElement('span');
+          left.className = 'legend-left';
+
+          const box = document.createElement('span');
+          box.className = 'legend-box';
+          box.style.background = theDs.backgroundColor?.[i] || '#999';
+
+          const name = document.createElement('span');
+          name.className = 'legend-label';
+          name.textContent = label;
+          name.title = label;
+
+          left.appendChild(box);
+          left.appendChild(name);
+
+          const v = Number(theDs.data?.[i] || 0);
+          const pct = total ? Math.round((v / total) * 100) : 0;
+
+          const meta = document.createElement('span');
+          meta.className = 'legend-meta';
+          meta.textContent = `${v.toLocaleString('pt-BR')} (${pct}%)`;
+
+          btn.appendChild(left);
+          btn.appendChild(meta);
+
+          btn.onclick = () => {
+            const hidden = chart.getDataVisibility(i) === false;
+            chart.toggleDataVisibility(i);
+            btn.style.opacity = hidden ? '1' : '0.5';
+            chart.update();
+          };
+          btn.style.opacity = chart.getDataVisibility(i) === false ? '0.5' : '1';
+
+          el.appendChild(btn);
+        });
+      }
+    };
+    Chart.register(centerTextPlugin, htmlLegendPlugin);
+
+    /* ========================
+      Paletas (d3)
+    ======================== */
+    const DONUT1_PALETTE = ['#8db600', '#659000', '#a1c02c', '#c09713', '#80221b'];
+    const STATE_PALETTE = ['#8db600', '#bce444', '#e9a700', '#e5733d', '#ab625e'];
+    const MODALITY_PALETTE = ['#704214', '#6d3f11', '#6b9b5a', '#95bd6f', '#f69171'];
+    const CATEGORY_PALETTE = ['#867416', '#bea74b', '#f8de7e', '#feeeb8', '#fffff1'];
+    const categoryColor = d3.piecewise(d3.interpolateHcl, CATEGORY_PALETTE);
+    const modalityColor = d3.piecewise(d3.interpolateHcl, MODALITY_PALETTE);
+    const stateColor    = d3.piecewise(d3.interpolateHcl, STATE_PALETTE.slice().reverse());
+
+    /* ========================
+      Estado/variáveis globais
+    ======================== */
+    let map, geojsonLayer=null, geojsonData=null, filteredData=[], dataTable=null, barChart=null;
+    const chartsStore={};
+    const classColors={ameaca:'#FF6D00', pressao:'#c62828', Todos:'#008055'};
+    let currentClass = 'ameaca';
+    let currentFilter = null;     // null | 'ti' | 'uc' | 'allap'
+    let ucSubtype = 'all';        // 'all' | 'federal'/'estadual' (traduzido p/ ucf/uce)
+    let selectedYear = 2025;      // null = Todos
+    let selectedQuarter = null;   // null | 1..4
+    let selectedEstado = null;    // "AM" ou combo "AM/RO"
+    let selectedCategoria = null, selectedUso = null;
+    let AP_SELECTED_TYPE = 'geojson';
+
+    let featureLayerIndex = new Map();
+    let barItems = [];
+    let colorMap = new Map();
+
+    function getProp(p, ...names){ for(const k of names){ if(p && p[k]!=null && p[k]!=='') return p[k]; } return null; }
+    function mkKey(p){ const nome=getProp(p,'nome'); const estado=getProp(p,'estado'); return `${(nome||'').trim()}|${(estado||'').trim()}`; }
+    function fallbackColor(){ if (currentClass === 'Todos') return d3.interpolateGreys(0.6); if (currentClass === 'ameaca') return d3.interpolateOranges(0.6); return d3.interpolateReds(0.6); }
+    function getColorFor(p){ const key=mkKey(p||{}); return colorMap.get(key) || fallbackColor(); }
+
+    /* ========================
+      Ano / Trimestre / Legenda
+    ======================== */
+    function _norm(s){ return String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+    function getYear(p = {}) { return p.ano ?? p.ANO ?? p.Ano ?? null; }
+    function getLegenda(p = {}) {
+      return p.legend ?? p.Legend ?? p.LEGEND ??
+            p.legenda ?? p.Legenda ?? p.LEGENDA ?? null;
+    }
+    function fixLegendDisplay(txt){
+      if (!txt) return txt;
+      let s = String(txt);
+      s = s.replace(/\bMARCO\b/g, 'MARÇO').replace(/\bMarco\b/g, 'Março').replace(/\bmarco\b/g, 'março');
+      s = s.replace(/m[êe]s\s*a\s*m[êe]s/gi, 'mês a mês');
+      if (!/\(mês a mês\)/i.test(s) && /mês a mês/i.test(s)) s = s.replace(/mês a mês/gi, '(mês a mês)');
+      return s;
+    }
+    function readQuarterFromValue(v){
+      if (v == null) return null;
+      const s = _norm(v);
+      if (/(^|[^a-z])t1|primeiro|1º|1o|jan|fev|mar|janeiro|fevereiro|março/.test(s)) return 1;
+      if (/(^|[^a-z])t2|segundo|2º|2o|abr|mai|jun|abril|maio|junho/.test(s)) return 2;
+      if (/(^|[^a-z])t3|terceiro|3º|3o|jul|ago|set|julho|agosto|setembro/.test(s)) return 3;
+      if (/(^|[^a-z])t4|quarto|4º|4o|out|nov|dez|outubro|novembro|dezembro/.test(s)) return 4;
+      const m = s.match(/([1-4])/);
+      return m ? Number(m[1]) : null;
+    }
+    function getQuarter(p = {}) {
+      const candNum = [
+        p.periodo, p.Periodo, p.PERIODO, p['Período'], p['PERÍODO'],
+        p.trimestre, p.Trimestre, p.TRIMESTRE, p.trim, p.tri,
+        p.legend, p.Legend, p.LEGEND
+      ];
+      for (const v of candNum){
+        const n = Number(v);
+        if (Number.isFinite(n) && n >= 1 && n <= 4) return n;
+      }
+      return readQuarterFromValue(getLegenda(p));
+    }
+    const DEFAULT_LEGENDS = {
+      1: 'janeiro a março', 2: 'abril a junho',
+      3: 'julho a setembro', 4: 'outubro a dezembro'
+    };
+
+    // --- Fallbacks de trimestre/legenda quando geojsonData ainda não estiver disponível ---
+    function quartersForDownloads(year){
+      // Se temos dados, usa os trimestres reais
+      if (geojsonData && geojsonData.features && geojsonData.features.length > 0) {
+        const feats = geojsonData.features;
+        const set = new Set();
+        for (const f of feats){
+          const p = f.properties || {};
+          const yOK = (year == null) ? true : String(getYear(p)) === String(year);
+          const q   = getQuarter(p);
+          if (yOK && q) set.add(q);
+        }
+        const quarters = Array.from(set).sort((a,b)=>a-b);
+        if (quarters.length > 0) return quarters;
+      }
+      
+      // Fallback: regras especiais por ano
+      if (Number(year) === 2020) return [1];
+      if (Number(year) === 2021) return [1, 2];
+      if (Number(year) === 2022) return [1, 2, 3, 4];
+      if (Number(year) === 2023) return [1, 2, 3, 4];
+      if (Number(year) === 2024) return [1, 2, 3, 4];
+      if (Number(year) === 2025) return [1, 2];
+      return [1,2,3,4]; // fallback genérico para outros anos
+    }
+    function legendForDownloads(year, q){
+      // Se temos dados, tenta encontrar a legenda real
+      if (geojsonData && geojsonData.features && geojsonData.features.length > 0) {
+        const leg = findLegendaFor(year, q);
+        if (leg) return leg;
+      }
+      
+      // Legendas especiais para anos específicos
+      if (Number(year) === 2020 && Number(q) === 1) return 'agosto/2019 a julho/2020';
+      if (Number(year) === 2021 && Number(q) === 1) return 'fevereiro a abril';
+      if (Number(year) === 2021 && Number(q) === 2) return 'agosto a outubro';
+      return DEFAULT_LEGENDS[q] || `T${q}`;
+    }
+
+    function periodLabel(p = {}) {
+      const q = getQuarter(p);
+      const legRaw = getLegenda(p) || (q ? DEFAULT_LEGENDS[q] : null);
+      const leg = fixLegendDisplay(legRaw);
+      if (q && leg) return `T${q} — ${leg}`;
+      if (q)        return `T${q}`;
+      return leg || '-';
+    }
+    function availableQuarters(year){
+      // Regras especiais por ano
+      if (Number(year) === 2020) return [1];
+      if (Number(year) === 2021) return [1, 2];
+      
+      const feats = (geojsonData?.features) || [];
       const set = new Set();
       for (const f of feats){
         const p = f.properties || {};
@@ -703,252 +750,176 @@
         const q   = getQuarter(p);
         if (yOK && q) set.add(q);
       }
-      const quarters = Array.from(set).sort((a,b)=>a-b);
-      if (quarters.length > 0) return quarters;
+      return Array.from(set).sort((a,b)=>a-b);
     }
-    
-    // Fallback: regras especiais por ano
-    if (Number(year) === 2020) return [1];
-    if (Number(year) === 2021) return [1, 2];
-    if (Number(year) === 2022) return [1, 2, 3, 4];
-    if (Number(year) === 2023) return [1, 2, 3, 4];
-    if (Number(year) === 2024) return [1, 2, 3, 4];
-    if (Number(year) === 2025) return [1, 2];
-    return [1,2,3,4]; // fallback genérico para outros anos
-  }
-  function legendForDownloads(year, q){
-    // Se temos dados, tenta encontrar a legenda real
-    if (geojsonData && geojsonData.features && geojsonData.features.length > 0) {
-      const leg = findLegendaFor(year, q);
-      if (leg) return leg;
+    function findLegendaFor(year, quarter){
+      if (quarter == null) return null;
+      // Legendas especiais para anos específicos
+      if (Number(year) === 2020 && Number(quarter) === 1) return 'agosto/2019 a julho/2020';
+      if (Number(year) === 2021 && Number(quarter) === 1) return 'fevereiro a abril';
+      if (Number(year) === 2021 && Number(quarter) === 2) return 'agosto a outubro';
+      
+      const feats = (geojsonData?.features) || [];
+      const hits = feats.filter(f=>{
+        const p = f.properties || {};
+        const yOK = (year == null) ? true : String(getYear(p)) === String(year);
+        return yOK && getQuarter(p) === Number(quarter);
+      });
+      if (!hits.length) return DEFAULT_LEGENDS[quarter] || null;
+      const freq = new Map();
+      hits.forEach(f=>{
+        const l = getLegenda(f.properties || {});
+        if (!l) return;
+        freq.set(l, (freq.get(l)||0) + 1);
+      });
+      let best = null, bestN = -1;
+      freq.forEach((n,k)=>{ if(n>bestN){ bestN=n; best=k; }});
+      return fixLegendDisplay(best || DEFAULT_LEGENDS[quarter] || null);
     }
-    
-    // Legendas especiais para anos específicos
-    if (Number(year) === 2020 && Number(q) === 1) return 'agosto/2019 a julho/2020';
-    if (Number(year) === 2021 && Number(q) === 1) return 'fevereiro a abril';
-    if (Number(year) === 2021 && Number(q) === 2) return 'agosto a outubro';
-    return DEFAULT_LEGENDS[q] || `T${q}`;
+
+    /* ========================
+      Valores numéricos
+    ======================== */
+    function cellValue(p = {}) {
+      const v = p.celulas ?? p.CELULAS ?? p["Celulas"] ?? p["Células"] ?? 0;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    /* ========================
+      Exportação GeoJSON (do contexto do dashboard)
+    ======================== */
+    function getDashboardFeatureCollection(mode='map'){
+      let features = [];
+      if (mode === 'map')      features = (barItems || []).map(r => r._f).filter(Boolean);
+      else if (mode === 'filtered') features = (filteredData || []);
+      else                      features = (geojsonData?.features) || [];
+      const norm = features.map(f => ({ type: 'Feature', properties: { ...(f.properties || {}) }, geometry: f.geometry ? JSON.parse(JSON.stringify(f.geometry)) : null }));
+      return { type: 'FeatureCollection', features: norm };
+    }
+    function fileContextBase(){
+      const scope = currentFilter || 'Todos';
+      const cls = currentClass || 'ameaca';
+      const year = selectedYear ?? 'todos';
+      const ucSub = (scope==='uc') ? `_${ucSubtype}` : '';
+      const tri = selectedQuarter ? `_T${selectedQuarter}` : '';
+      return `ap_mapa_${scope}${ucSub}_${cls}_${year}${tri}`;
+    }
+    function _saveBlob(data, mime, filename){
+      const blob = new Blob([data], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+    function _contextFilename(base, mode, ext){
+      const suffix = mode === 'map' ? '_top10' : mode === 'filtered' ? '_filtrados' : '_base';
+      return `${base}${suffix}.${ext}`;
+    }
+    function downloadGeoJSONFromDashboard(mode='map'){
+      const fc = getDashboardFeatureCollection(mode);
+      if (!fc.features.length) { alert('Não há dados para exportar.'); return; }
+      const name = _contextFilename(fileContextBase(), mode, 'geojson');
+      _saveBlob(JSON.stringify(fc), 'application/geo+json;charset=utf-8', name);
+    }
+
+    /* ========================
+      Downloads - Ameaça e Pressão (padrão SAD) → AWS - CORRIGIDO
+    ======================== */
+
+  // Função corrigida para gerar URLs no formato correto
+  function apQuarterlyUrl(year, quarter, type = AP_SELECTED_TYPE) {
+    // Formato: ameaca_e_pressao_1_trimestre_2020
+    const baseName = `ameaca_e_pressao_${quarter}_trimestre_${year}`;
+    return apUrlFromBase(baseName, type);
   }
 
-  function periodLabel(p = {}) {
-    const q = getQuarter(p);
-    const legRaw = getLegenda(p) || (q ? DEFAULT_LEGENDS[q] : null);
-    const leg = fixLegendDisplay(legRaw);
-    if (q && leg) return `T${q} — ${leg}`;
-    if (q)        return `T${q}`;
-    return leg || '-';
-  }
-  function availableQuarters(year){
-    // Regras especiais por ano
-    if (Number(year) === 2020) return [1];
-    if (Number(year) === 2021) return [1, 2];
+  // Função para construir blocos de ano - CORRIGIDA
+  async function buildAPYearBlock(year) {
+    const details = document.createElement('details');
+    details.open = false;
+
+    const summary = document.createElement('summary');
+    summary.innerHTML = `<span class="year">${year}</span>`;
+    details.appendChild(summary);
+
+    const formats = document.createElement('div');
+    formats.className = 'format-wrap';
+
+    const fTrimestral = document.createElement('div');
+    fTrimestral.className = 'format-card';
+
+    // Títulos corrigidos por tipo
+    const titleMap = {
+      'geojson': 'GeoJSON trimestral',
+      'csv': 'CSV trimestral', 
+      'shp': 'Shapefile trimestral (ZIP)'
+    };
+    const titleKind = titleMap[AP_SELECTED_TYPE] || 'Arquivos trimestrais';
     
-    const feats = (geojsonData?.features) || [];
-    const set = new Set();
-    for (const f of feats){
-      const p = f.properties || {};
-      const yOK = (year == null) ? true : String(getYear(p)) === String(year);
-      const q   = getQuarter(p);
-      if (yOK && q) set.add(q);
-    }
-    return Array.from(set).sort((a,b)=>a-b);
-  }
-  function findLegendaFor(year, quarter){
-    if (quarter == null) return null;
-    // Legendas especiais para anos específicos
-    if (Number(year) === 2020 && Number(quarter) === 1) return 'agosto/2019 a julho/2020';
-    if (Number(year) === 2021 && Number(quarter) === 1) return 'fevereiro a abril';
-    if (Number(year) === 2021 && Number(quarter) === 2) return 'agosto a outubro';
-    
-    const feats = (geojsonData?.features) || [];
-    const hits = feats.filter(f=>{
-      const p = f.properties || {};
-      const yOK = (year == null) ? true : String(getYear(p)) === String(year);
-      return yOK && getQuarter(p) === Number(quarter);
+    fTrimestral.innerHTML = `<div class="format-title">${titleKind}</div>`;
+
+    const list = document.createElement('ul');
+    list.className = 'chiplist';
+
+    // Usa trimestres reais ou fallback inteligente
+    const quarters = quartersForDownloads(year);
+
+    quarters.forEach(q => {
+      const leg = legendForDownloads(year, q);
+      const label = `T${q} — ${leg}`;
+      const url = apQuarterlyUrl(year, q);
+      
+      // Verifica se o arquivo existe antes de adicionar
+      list.appendChild(makeChip(label, url));
     });
-    if (!hits.length) return DEFAULT_LEGENDS[quarter] || null;
-    const freq = new Map();
-    hits.forEach(f=>{
-      const l = getLegenda(f.properties || {});
-      if (!l) return;
-      freq.set(l, (freq.get(l)||0) + 1);
-    });
-    let best = null, bestN = -1;
-    freq.forEach((n,k)=>{ if(n>bestN){ bestN=n; best=k; }});
-    return fixLegendDisplay(best || DEFAULT_LEGENDS[quarter] || null);
+
+    fTrimestral.appendChild(list);
+    formats.appendChild(fTrimestral);
+    details.appendChild(formats);
+    return details;
   }
 
-  /* ========================
-     Valores numéricos
-  ======================== */
-  function cellValue(p = {}) {
-    const v = p.celulas ?? p.CELULAS ?? p["Celulas"] ?? p["Células"] ?? 0;
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
-  }
+  // Função para renderizar downloads - CORRIGIDA
+  async function renderDownloadsAP() {
+    const ul = document.getElementById('ap-downloads-list');
+    ul.innerHTML = '<li class="muted">Carregando anos disponíveis...</li>';
 
-  /* ========================
-     Exportação GeoJSON (do contexto do dashboard)
-  ======================== */
-  function getDashboardFeatureCollection(mode='map'){
-    let features = [];
-    if (mode === 'map')      features = (barItems || []).map(r => r._f).filter(Boolean);
-    else if (mode === 'filtered') features = (filteredData || []);
-    else                      features = (geojsonData?.features) || [];
-    const norm = features.map(f => ({ type: 'Feature', properties: { ...(f.properties || {}) }, geometry: f.geometry ? JSON.parse(JSON.stringify(f.geometry)) : null }));
-    return { type: 'FeatureCollection', features: norm };
-  }
-  function fileContextBase(){
-    const scope = currentFilter || 'Todos';
-    const cls = currentClass || 'ameaca';
-    const year = selectedYear ?? 'todos';
-    const ucSub = (scope==='uc') ? `_${ucSubtype}` : '';
-    const tri = selectedQuarter ? `_T${selectedQuarter}` : '';
-    return `ap_mapa_${scope}${ucSub}_${cls}_${year}${tri}`;
-  }
-  function _saveBlob(data, mime, filename){
-    const blob = new Blob([data], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
-  function _contextFilename(base, mode, ext){
-    const suffix = mode === 'map' ? '_top10' : mode === 'filtered' ? '_filtrados' : '_base';
-    return `${base}${suffix}.${ext}`;
-  }
-  function downloadGeoJSONFromDashboard(mode='map'){
-    const fc = getDashboardFeatureCollection(mode);
-    if (!fc.features.length) { alert('Não há dados para exportar.'); return; }
-    const name = _contextFilename(fileContextBase(), mode, 'geojson');
-    _saveBlob(JSON.stringify(fc), 'application/geo+json;charset=utf-8', name);
-  }
+    try {
+      // Limpa o loading
+      ul.innerHTML = '';
 
-  /* ========================
-     Downloads - Ameaça e Pressão (padrão SAD) → AWS - CORRIGIDO
-  ======================== */
+      const curYear = new Date().getFullYear();
+      const years = [];
+      
+      // Gera lista de anos de 2020 até o atual
+      for (let y = curYear; y >= 2020; y--) {
+        years.push(y);
+      }
 
-// Função corrigida para gerar URLs no formato correto
-function apQuarterlyUrl(year, quarter, type = AP_SELECTED_TYPE) {
-  // Formato: ameaca_e_pressao_1_trimestre_2020
-  const baseName = `ameaca_e_pressao_${quarter}_trimestre_${year}`;
-  return apUrlFromBase(baseName, type);
-}
+      // Renderiza cada ano
+      for (let y of years) {
+        const blk = await buildAPYearBlock(y);
+        const li = document.createElement('li');
+        li.appendChild(blk);
+        ul.appendChild(li);
+      }
 
-// Função para construir blocos de ano - CORRIGIDA
-async function buildAPYearBlock(year) {
-  const details = document.createElement('details');
-  details.open = false;
-
-  const summary = document.createElement('summary');
-  summary.innerHTML = `<span class="year">${year}</span>`;
-  details.appendChild(summary);
-
-  const formats = document.createElement('div');
-  formats.className = 'format-wrap';
-
-  const fTrimestral = document.createElement('div');
-  fTrimestral.className = 'format-card';
-
-  // Títulos corrigidos por tipo
-  const titleMap = {
-    'geojson': 'GeoJSON trimestral',
-    'csv': 'CSV trimestral', 
-    'shp': 'Shapefile trimestral (ZIP)'
-  };
-  const titleKind = titleMap[AP_SELECTED_TYPE] || 'Arquivos trimestrais';
-  
-  fTrimestral.innerHTML = `<div class="format-title">${titleKind}</div>`;
-
-  const list = document.createElement('ul');
-  list.className = 'chiplist';
-
-  // Usa trimestres reais ou fallback inteligente
-  const quarters = quartersForDownloads(year);
-
-  quarters.forEach(q => {
-    const leg = legendForDownloads(year, q);
-    const label = `T${q} — ${leg}`;
-    const url = apQuarterlyUrl(year, q);
-    
-    // Verifica se o arquivo existe antes de adicionar
-    list.appendChild(makeChip(label, url));
-  });
-
-  fTrimestral.appendChild(list);
-  formats.appendChild(fTrimestral);
-  details.appendChild(formats);
-  return details;
-}
-
-// Função para renderizar downloads - CORRIGIDA
-async function renderDownloadsAP() {
-  const ul = document.getElementById('ap-downloads-list');
-  ul.innerHTML = '<li class="muted">Carregando anos disponíveis...</li>';
-
-  try {
-    // Limpa o loading
-    ul.innerHTML = '';
-
-    const curYear = new Date().getFullYear();
-    const years = [];
-    
-    // Gera lista de anos de 2020 até o atual
-    for (let y = curYear; y >= 2020; y--) {
-      years.push(y);
+      // Mensagem se não houver downloads
+      if (!ul.children.length) {
+        const li = document.createElement('li');
+        li.className = 'muted';
+        li.textContent = 'Nenhum download disponível para os filtros atuais.';
+        ul.appendChild(li);
+      }
+    } catch (error) {
+      console.error('Erro ao renderizar downloads:', error);
+      ul.innerHTML = '<li class="muted">Erro ao carregar downloads.</li>';
     }
-
-    // Renderiza cada ano
-    for (let y of years) {
-      const blk = await buildAPYearBlock(y);
-      const li = document.createElement('li');
-      li.appendChild(blk);
-      ul.appendChild(li);
-    }
-
-    // Mensagem se não houver downloads
-    if (!ul.children.length) {
-      const li = document.createElement('li');
-      li.className = 'muted';
-      li.textContent = 'Nenhum download disponível para os filtros atuais.';
-      ul.appendChild(li);
-    }
-  } catch (error) {
-    console.error('Erro ao renderizar downloads:', error);
-    ul.innerHTML = '<li class="muted">Erro ao carregar downloads.</li>';
   }
-}
 
-// Função para criar chips de download
-function makeChip(label, url) {
-  const li = document.createElement('li');
-  const a = document.createElement('a');
-  a.className = 'chiplink';
-  a.textContent = label;
-  a.href = url;
-  a.target = '_blank';
-  a.rel = 'noopener noreferrer';
-  
-  // Adiciona verificação de existência do arquivo
-  a.addEventListener('click', async (e) => {
-    // Opcional: verificar se o arquivo existe antes de permitir download
-    // try {
-    //   const response = await fetch(url, { method: 'HEAD' });
-    //   if (!response.ok) {
-    //     e.preventDefault();
-    //     alert('Arquivo não disponível no momento.');
-    //   }
-    // } catch (err) {
-    //   e.preventDefault();
-    //   alert('Erro ao verificar disponibilidade do arquivo.');
-    // }
-  });
-  
-  li.appendChild(a);
-  return li;
-}
-
+  // Função para criar chips de download
   function makeChip(label, url) {
     const li = document.createElement('li');
     const a = document.createElement('a');
@@ -956,1270 +927,1261 @@ function makeChip(label, url) {
     a.textContent = label;
     a.href = url;
     a.target = '_blank';
-    a.rel = 'noopener';
+    a.rel = 'noopener noreferrer';
+    
+    // Adiciona verificação de existência do arquivo
+    a.addEventListener('click', async (e) => {
+      // Opcional: verificar se o arquivo existe antes de permitir download
+      // try {
+      //   const response = await fetch(url, { method: 'HEAD' });
+      //   if (!response.ok) {
+      //     e.preventDefault();
+      //     alert('Arquivo não disponível no momento.');
+      //   }
+      // } catch (err) {
+      //   e.preventDefault();
+      //   alert('Erro ao verificar disponibilidade do arquivo.');
+      // }
+    });
+    
     li.appendChild(a);
     return li;
   }
 
-  /* ========================
-     Pop-up sem dados
-  ======================== */
-  function showNoDataPopup() {
-    const overlay = document.createElement('div');
-    overlay.className = 'popup-overlay';
-
-    const popup = document.createElement('div');
-    popup.className = 'custom-popup';
-    popup.innerHTML = `
-      <button class="popup-close">&times;</button>
-      <h4 style="color: #c62828; margin-bottom: 1rem;">Aviso</h4>
-      <p>NÃO HÁ INFORMAÇÕES PARA A OPÇÃO SELECIONADA</p>
-      <button class="btn btn-primary mt-3" style="background: #008055; border: none;">
-        OK
-      </button>
-    `;
-
-    overlay.appendChild(popup);
-    document.body.appendChild(overlay);
-
-    const closeBtn = popup.querySelector('.popup-close');
-    const okBtn = popup.querySelector('.btn');
-    const closePopup = () => {
-      document.body.removeChild(overlay);
-    };
-
-    closeBtn.addEventListener('click', closePopup);
-    okBtn.addEventListener('click', closePopup);
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) closePopup();
-    });
-  }
-
-  /* ========================
-     UI (anos/títulos/menus)
-  ======================== */
-  function filename(scope, cls, year, ucSub=''){
-    if(scope===null){ return `ameaca_e_pressao_${year}_geral_${cls}.geojson`; }
-    if(scope==='ti'){  return `ameaca_e_pressao_${year}_categ_ti_${cls}.geojson`; }
-    if(scope==='uc'){
-      if(ucSub==='uce') return `ameaca_e_pressao_${year}_categ_uce_${cls}.geojson`;
-      if(ucSub==='ucf') return `ameaca_e_pressao_${year}_categ_ucf_${cls}.geojson`;
-    }
-    return null;
-  }
-  const dashboardTitle = (scope, cls, ucSub, ano, triNum) => {
-    const classe = cls === 'ameaca' ? 'Ameaça' : (cls === 'pressao' ? 'Pressão' : 'Geral');
-    let escopo = 'Áreas Protegidas';
-    if (scope === 'ti') escopo = 'Terras Indígenas';
-    if (scope === 'uc') {
-      if (ucSub === 'uce') escopo = 'Unidade de Conservação Estadual';
-      else if (ucSub === 'ucf') escopo = 'Unidade de Conservação Federal';
-      else escopo = 'Unidades de Conservação';
-    }
-    if (scope === 'allap') escopo = 'Todos Protegidas';
-    let extra = '';
-    if (ano)    extra += ` — ${ano}`;
-    if (triNum) extra += ` T${triNum}`;
-    return `${classe} — ${escopo}${extra}`;
-  };
-  function setTitles(){
-    const scope=currentFilter;
-    const mapTitleEl=document.getElementById('map-card-title');
-    const rankTitleEl=document.getElementById('rank-card-title');
-    const pressionadasDe = (currentClass==='ameaca')?'Mais Ameaçadas':(currentClass==='pressao')?'Mais Pressionadas':'Mais Relevantes';
-    if(scope==='ti'){
-      mapTitleEl.textContent=`Mapa das Terras Indígenas ${pressionadasDe}`;
-      rankTitleEl.textContent=`Ranking das 10 Terras Indígenas ${pressionadasDe}`;
-    }else if(scope==='uc'){
-      mapTitleEl.textContent=`Mapa das Unidades de Conservação ${pressionadasDe}`;
-      rankTitleEl.textContent=`Ranking das 10 Unidades de Conservação ${pressionadasDe}`;
-    }else if(scope==='allap'){
-      mapTitleEl.textContent=`Mapa de Todos Protegidas ${pressionadasDe}`;
-      rankTitleEl.textContent=`Ranking das 10 Áreas Protegidas ${pressionadasDe}`;
-    }else{
-      mapTitleEl.textContent=`Mapa das Áreas Protegidas ${pressionadasDe}`;
-      rankTitleEl.textContent=`Ranking das 10 Áreas Protegidas ${pressionadasDe}`;
-    }
-  }
-
-  /* ========================
-     Controles UC - ATUALIZADA
-  ======================== */
-  function updateAttributeControlsVisibility() {
-    const filterContainer = document.querySelector('.filter-container');
-    const show = currentFilter === 'uc';
-    
-    if (filterContainer) {
-      filterContainer.classList.toggle('uc-selected', show);
+    function makeChip(label, url) {
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.className = 'chiplink';
+      a.textContent = label;
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      li.appendChild(a);
+      return li;
     }
 
-    // Sincronizar os selects de Ano e Trimestre entre as duas posições
-    if (show) {
-      const yearValue = document.getElementById('yearFilter').value;
-      const quarterValue = document.getElementById('quarterFilter').value;
-      document.getElementById('yearFilterMiddle').value = yearValue;
-      document.getElementById('quarterFilterMiddle').value = quarterValue;
-    } else {
-      const yearValue = document.getElementById('yearFilterMiddle').value;
-      const quarterValue = document.getElementById('quarterFilterMiddle').value;
-      document.getElementById('yearFilter').value = yearValue;
-      document.getElementById('quarterFilter').value = quarterValue;
-      
-      selectedCategoria = null;
-      selectedUso = null;
-      ucSubtype = 'all';
-      if (document.getElementById('categoryFilter')) 
-        document.getElementById('categoryFilter').value = 'all';
-      if (document.getElementById('usoFilter')) 
-        document.getElementById('usoFilter').value = 'all';
-      if (document.getElementById('jurisdictionFilter')) 
-        document.getElementById('jurisdictionFilter').value = 'all';
-    }
-  }
+    /* ========================
+      Pop-up sem dados
+    ======================== */
+    function showNoDataPopup() {
+      const overlay = document.createElement('div');
+      overlay.className = 'popup-overlay';
 
-  /* ========================
-     Mapa - CORREÇÃO PARA FILTRO "TODOS"
-  ======================== */
-  function initializeMap(){
-    if (map) { try{ map.off(); map.remove(); }catch(e){} }
-    map = L.map('map', { zoomControl: true });
+      const popup = document.createElement('div');
+      popup.className = 'custom-popup';
+      popup.innerHTML = `
+        <button class="popup-close">&times;</button>
+        <h4 style="color: #c62828; margin-bottom: 1rem;">Aviso</h4>
+        <p>NÃO HÁ INFORMAÇÕES PARA A OPÇÃO SELECIONADA</p>
+        <button class="btn btn-primary mt-3" style="background: #008055; border: none;">
+          OK
+        </button>
+      `;
 
-    if (!map.getPane('amzBase')){
-      map.createPane('amzBase');
-      map.getPane('amzBase').style.zIndex = 350;
-      map.getPane('amzBase').style.pointerEvents = 'none';
-    }
+      overlay.appendChild(popup);
+      document.body.appendChild(overlay);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      subdomains: 'abcd', maxZoom: 20, crossOrigin: true
-    }).addTo(map);
+      const closeBtn = popup.querySelector('.popup-close');
+      const okBtn = popup.querySelector('.btn');
+      const closePopup = () => {
+        document.body.removeChild(overlay);
+      };
 
-    const BASE_GEOJSON_URL = '/dataset/AMZ_legal_amz_legal.geojson';
-    const amazoniaBounds = L.latLngBounds([[-18,-75],[6,-44]]);
-    let baseLayer = null;
-
-    function baseStyle() {
-      return { color:'#6B7280', weight:2.2, opacity:0.95, fill:false, fillOpacity:0 };
-    }
-    fetch(BASE_GEOJSON_URL, { cache: 'no-cache' })
-      .then(r => r.json())
-      .then(gj => {
-        try { if (baseLayer) map.removeLayer(baseLayer); } catch (_) {}
-        baseLayer = L.geoJSON(gj, { pane:'amzBase', style:baseStyle, interactive:false }).addTo(map);
-        const b = baseLayer.getBounds?.();
-        if (b && b.isValid()) map.fitBounds(b, { padding:[20,20] });
-        else map.fitBounds(amazoniaBounds, { padding:[20,20] });
-      })
-      .catch(e => {
-        console.error('Erro ao carregar base da Amazônia Legal:', e);
-        map.fitBounds(amazoniaBounds, { padding: [20, 20] });
+      closeBtn.addEventListener('click', closePopup);
+      okBtn.addEventListener('click', closePopup);
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closePopup();
       });
-  }
-
-  function paintLayer(layer, color){
-    if (!layer) return;
-    if (layer.setStyle) layer.setStyle({ color, fillColor: color, weight:2, opacity:0.95, fillOpacity:0.6 });
-    if (layer.eachLayer) layer.eachLayer(child => paintLayer(child, color));
-  }
-
-  function updateMap(){
-    if (geojsonLayer){ try{ geojsonLayer.remove(); }catch(e){} }
-    featureLayerIndex = new Map();
-
-    // CORREÇÃO: Quando "Todos" está selecionado, precisamos agrupar as features por território
-    // e mostrar todos os ranks que cada território aparece
-    let featuresToDraw = [];
-    const featuresByKey = new Map();
-
-    if (currentClass === 'Todos') {
-      // Agrupa todas as features por chave do território
-      barItems.forEach((r, index) => {
-        const key = mkKey(r._f.properties || {});
-        if (!featuresByKey.has(key)) {
-          featuresByKey.set(key, {
-            feature: r._f,
-            ranks: [],
-            classes: [],
-            cells: []
-          });
-        }
-        const entry = featuresByKey.get(key);
-        entry.ranks.push(index + 1);
-        entry.classes.push(r._f.properties?.class || currentClass);
-        entry.cells.push(r.cells);
-      });
-
-      // Para o mapa, usamos uma feature única por território, mas com informações consolidadas
-      featuresToDraw = Array.from(featuresByKey.values()).map(entry => {
-        // Clona a feature para não modificar a original
-        const clonedFeature = JSON.parse(JSON.stringify(entry.feature));
-        // Adiciona propriedades consolidadas
-        clonedFeature.properties._consolidated = true;
-        clonedFeature.properties._allRanks = entry.ranks;
-        clonedFeature.properties._allClasses = entry.classes;
-        clonedFeature.properties._allCells = entry.cells;
-        return clonedFeature;
-      });
-    } else {
-      // Comportamento normal para outros filtros
-      featuresToDraw = (barItems || []).map(r => r._f).filter(Boolean);
     }
 
-    const rankByKey = new Map();
-    
-    if (currentClass === 'Todos') {
-      // Para "Todos", cada território pode ter múltiplos ranks
-      featuresByKey.forEach((entry, key) => {
-        rankByKey.set(key, {
-          ranks: entry.ranks,
-          classes: entry.classes
-        });
-      });
-    } else {
-      // Comportamento normal para outros filtros
-      (barItems || []).forEach((r, i) => rankByKey.set(mkKey(r?._f?.properties || {}), i + 1));
-    }
-
-    // CORREÇÃO: Tooltip aprimorado para mostrar múltiplos ranks quando aplicável
-    const buildHoverHTML = (p, rankInfo) => {
-      let rankHTML = '';
-      
-      if (currentClass === 'Todos' && rankInfo && rankInfo.ranks) {
-        // Mostra todos os ranks para o território
-        rankHTML = `<div><b>Posições no Ranking:</b><br/>`;
-        rankInfo.ranks.forEach((rank, index) => {
-          const classe = rankInfo.classes[index];
-          const classeTexto = classe === 'ameaca' ? 'Ameaça' : classe === 'pressao' ? 'Pressão' : 'Geral';
-          rankHTML += `#${rank}° (${classeTexto})<br/>`;
-        });
-        rankHTML += `</div>`;
-      } else if (rankInfo) {
-        // Comportamento normal para um único rank
-        rankHTML = `<div><b>Posição no Ranking:</b> #${rankInfo}°</div>`;
+    /* ========================
+      UI (anos/títulos/menus)
+    ======================== */
+    function filename(scope, cls, year, ucSub=''){
+      if(scope===null){ return `ameaca_e_pressao_${year}_geral_${cls}.geojson`; }
+      if(scope==='ti'){  return `ameaca_e_pressao_${year}_categ_ti_${cls}.geojson`; }
+      if(scope==='uc'){
+        if(ucSub==='uce') return `ameaca_e_pressao_${year}_categ_uce_${cls}.geojson`;
+        if(ucSub==='ucf') return `ameaca_e_pressao_${year}_categ_ucf_${cls}.geojson`;
       }
-      
-      return `
-        <div style="font-family:Montserrat,sans-serif;min-width:240px">
-          <div style="font-weight:700;font-size:14px;margin-bottom:6px">${p.nome || '-'}</div>
-          ${rankHTML}
-          <div><b>Estado:</b> ${formatEstadoFull(p.estado)}</div>
-          <div><b>Categoria:</b> ${mapAcronymLabel(p.categoria ?? '-')}</div>
-          <div><b>Modalidade:</b> ${mapAcronymLabel(p.modalidade || '-')}</div>
-          <div><b>Uso:</b> ${p.uso || '-'}</div>
-          <div><b>Células:</b> ${Number(p.celulas || 0).toLocaleString('pt-BR')}</div>
-          <div><b>Ano:</b> ${p.ano || '-'} &nbsp; <b>Trimestre:</b> ${periodLabel(p)}</div>
-          ${currentClass === 'Todos' && p._allCells ? `<div><b>Células por categoria:</b><br/>${p._allClasses.map((classe, idx) => `${classe === 'ameaca' ? 'Ameaça' : 'Pressão'}: ${p._allCells[idx].toLocaleString('pt-BR')}`).join('<br/>')}</div>` : ''}
-        </div>`;
-    };
-
-    const mapFeatures = [];
-    geojsonLayer = L.geoJSON(featuresToDraw, {
-      style: f => {
-        const c = getColorFor(f.properties || {});
-        return { color:c, fillColor:c, weight:2, opacity:0.95, fillOpacity:0.6 };
-      },
-      pointToLayer: (f, latlng) => L.circleMarker(latlng, {
-        radius:6, weight:1,
-        color:getColorFor(f.properties||{}),
-        fillColor:getColorFor(f.properties||{}),
-        fillOpacity:0.7
-      }),
-      onEachFeature: (f, layer) => {
-        const p = f.properties || {};
-        const key = mkKey(p);
-        featureLayerIndex.set(key, layer);
-        mapFeatures.push(layer);
-
-        layer.unbindPopup?.();
-
-        const rankInfo = rankByKey.get(key) || null;
-        layer.bindTooltip(buildHoverHTML(p, rankInfo),
-          { sticky:true, direction:'top', opacity:1, className:'ap-hover-card' });
-
-        layer.on('mouseover', () => {
-          layer.bringToFront?.();
-          layer.setStyle?.({ weight:4, opacity:1 });
-        });
-        layer.on('mouseout', () => {
-          const c = getColorFor(p);
-          paintLayer(layer, c);
-          layer.setStyle?.({ weight:2, opacity:0.95 });
-        });
-
-        paintLayer(layer, getColorFor(p));
-      }
-    }).addTo(map);
-
-    if (mapFeatures.length > 0) {
-      try { map.fitBounds(geojsonLayer.getBounds(), { padding:[20,20] }); } catch(e){}
-    }
-  }
-
-  /* ========================
-     Botões / eventos - ATUALIZADA
-  ======================== */
-  function setupButtons(){
-    document.getElementById('typeFilter').addEventListener('change', (e) => {
-      currentClass = e.target.value;
-      updateFilterDisplay();
-      loadDashboard();
-    });
-    
-    document.getElementById('areaFilter').addEventListener('change', (e) => {
-      currentFilter = e.target.value === 'all' ? null : e.target.value;
-      updateAttributeControlsVisibility();
-      updateFilterDisplay();
-      loadDashboard();
-    });
-    
-    document.getElementById('yearFilter').addEventListener('change', (e) => {
-      selectedYear = e.target.value === 'all' ? null : parseInt(e.target.value);
-      updateQuarterOptions();
-      // Sincronizar com o select do meio se UC estiver selecionado
-      if (currentFilter === 'uc') {
-        document.getElementById('yearFilterMiddle').value = e.target.value;
-      }
-      updateFilterDisplay();
-    });
-    
-    document.getElementById('quarterFilter').addEventListener('change', (e) => {
-      selectedQuarter = e.target.value === 'all' ? null : parseInt(e.target.value);
-      // Sincronizar com o select do meio se UC estiver selecionado
-      if (currentFilter === 'uc') {
-        document.getElementById('quarterFilterMiddle').value = e.target.value;
-      }
-      updateFilterDisplay();
-    });
-    
-    // Event listeners para os selects do meio (quando UC está selecionado)
-    document.getElementById('yearFilterMiddle').addEventListener('change', (e) => {
-      selectedYear = e.target.value === 'all' ? null : parseInt(e.target.value);
-      updateQuarterOptions(true); // true indica que é para atualizar o select do meio
-      updateFilterDisplay();
-    });
-    
-    document.getElementById('quarterFilterMiddle').addEventListener('change', (e) => {
-      selectedQuarter = e.target.value === 'all' ? null : parseInt(e.target.value);
-      updateFilterDisplay();
-    });
-    
-    document.getElementById('stateFilter').addEventListener('change', (e) => {
-      selectedEstado = e.target.value === 'all' ? null : e.target.value;
-      updateFilterDisplay();
-    });
-    
-    // Filtro de Uso
-    document.getElementById('usoFilter').addEventListener('change', (e) => {
-      selectedUso = e.target.value === 'all' ? null : e.target.value;
-      updateFilterDisplay();
-    });
-    
-    document.getElementById('categoryFilter').addEventListener('change', (e) => {
-      selectedCategoria = e.target.value === 'all' ? null : e.target.value;
-      updateFilterDisplay();
-    });
-    
-    document.getElementById('jurisdictionFilter').addEventListener('change', (e) => {
-      const val = e.target.value;
-      ucSubtype = val === 'all' ? 'all' : (val === 'Federal' ? 'ucf' : 'uce');
-      updateFilterDisplay();
-    });
-
-    document.getElementById('applyFilters').addEventListener('click', () => {
-      loadDashboard();
-    });
-
-    document.getElementById('clearFilters').addEventListener('click', () => {
-      document.getElementById('typeFilter').value = 'ameaca';
-      document.getElementById('areaFilter').value = 'all';
-      document.getElementById('yearFilter').value = 'all';
-      document.getElementById('quarterFilter').value = 'all';
-      document.getElementById('yearFilterMiddle').value = 'all';
-      document.getElementById('quarterFilterMiddle').value = 'all';
-      document.getElementById('stateFilter').value = 'all';
-      document.getElementById('usoFilter').value = 'all';
-      document.getElementById('categoryFilter').value = 'all';
-      document.getElementById('jurisdictionFilter').value = 'all';
-
-      currentClass = 'ameaca';
-      currentFilter = null;
-      selectedYear = null;
-      selectedQuarter = null;
-      selectedEstado = null;
-      selectedUso = null;
-      selectedCategoria = null;
-      ucSubtype = 'all';
-
-      updateAttributeControlsVisibility();
-      updateQuarterOptions();
-      updateFilterDisplay();
-      loadDashboard();
-    });
-  }
-
-  /* ========================
-     Loader
-  ======================== */
-  function showLoader(msg="Carregando dados..."){
-    const l=document.getElementById('loader-overlay'); if(!l) return;
-    const t=l.querySelector('.loader-text'); if(t) t.textContent=msg;
-    l.style.display='flex';
-  }
-  function hideLoader(){
-    const l=document.getElementById('loader-overlay'); if(l) l.style.display='none';
-  }
-
-  /* ========================
-     Fetch/merge
-  ======================== */
-  async function safeFetch(url){
-    try{
-      const res = await fetch(url);
-      if(!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
-    }catch(e){
-      console.warn('Erro ao carregar', url, e.message);
       return null;
     }
-  }
-  function mergeCollections(collections){
-    const all = [];
-    collections.forEach(c => { if(c && Array.isArray(c.features)) all.push(...c.features); });
-    return { type:'FeatureCollection', features: all };
-  }
-
-  /* ========================
-     CORREÇÃO: Targets para UC com jurisdição
-  ======================== */
-  function targetsFor(scope, cls, year, ucSub){
-    const t = [];
-    const addUC = (c, sub) => { 
-      // CORREÇÃO: Só adiciona se o subtipo corresponder ou for 'all'
-      if (ucSub === 'all' || sub === ucSub) {
-        t.push(filename('uc', c, year, sub)); 
+    const dashboardTitle = (scope, cls, ucSub, ano, triNum) => {
+      const classe = cls === 'ameaca' ? 'Ameaça' : (cls === 'pressao' ? 'Pressão' : 'Geral');
+      let escopo = 'Áreas Protegidas';
+      if (scope === 'ti') escopo = 'Terras Indígenas';
+      if (scope === 'uc') {
+        if (ucSub === 'uce') escopo = 'Unidade de Conservação Estadual';
+        else if (ucSub === 'ucf') escopo = 'Unidade de Conservação Federal';
+        else escopo = 'Unidades de Conservação';
       }
+      if (scope === 'allap') escopo = 'Todos Protegidas';
+      let extra = '';
+      if (ano)    extra += ` — ${ano}`;
+      if (triNum) extra += ` T${triNum}`;
+      return `${classe} — ${escopo}${extra}`;
     };
-    
-    const addTI = (c) => { t.push(filename('ti', c, year)); };
-
-    if(scope === null){
-      if(cls === 'Todos'){ 
-        t.push(filename(null,'ameaca',year)); 
-        t.push(filename(null,'pressao',year)); 
-      } else { 
-        t.push(filename(null,cls,year)); 
+    function setTitles(){
+      const scope=currentFilter;
+      const mapTitleEl=document.getElementById('map-card-title');
+      const rankTitleEl=document.getElementById('rank-card-title');
+      const pressionadasDe = (currentClass==='ameaca')?'Mais Ameaçadas':(currentClass==='pressao')?'Mais Pressionadas':'Mais Relevantes';
+      if(scope==='ti'){
+        mapTitleEl.textContent=`Mapa das Terras Indígenas ${pressionadasDe}`;
+        rankTitleEl.textContent=`Ranking das 10 Terras Indígenas ${pressionadasDe}`;
+      }else if(scope==='uc'){
+        mapTitleEl.textContent=`Mapa das Unidades de Conservação ${pressionadasDe}`;
+        rankTitleEl.textContent=`Ranking das 10 Unidades de Conservação ${pressionadasDe}`;
+      }else if(scope==='allap'){
+        mapTitleEl.textContent=`Mapa de Todos Protegidas ${pressionadasDe}`;
+        rankTitleEl.textContent=`Ranking das 10 Áreas Protegidas ${pressionadasDe}`;
+      }else{
+        mapTitleEl.textContent=`Mapa das Áreas Protegidas ${pressionadasDe}`;
+        rankTitleEl.textContent=`Ranking das 10 Áreas Protegidas ${pressionadasDe}`;
       }
-      return t;
     }
-    
-    if(scope === 'ti'){
-      if(cls === 'Todos'){ 
-        addTI('ameaca'); 
-        addTI('pressao'); 
-      } else { 
-        addTI(cls); 
-      }
-      return t;
-    }
-    
-    if(scope === 'uc'){
-      if(cls === 'Todos'){
-        // CORREÇÃO: Considera jurisdição específica
-        if (ucSub === 'all' || ucSub === 'uce') {
-          addUC('ameaca','uce'); 
-          addUC('pressao','uce');
-        }
-        if (ucSub === 'all' || ucSub === 'ucf') {
-          addUC('ameaca','ucf'); 
-          addUC('pressao','ucf');
-        }
-      } else {
-        if (ucSub === 'all' || ucSub === 'uce') addUC(cls,'uce'); 
-        if (ucSub === 'all' || ucSub === 'ucf') addUC(cls,'ucf');
-      }
-      return t;
-    }
-    
-    if(scope === 'allap'){
-      if(cls === 'Todos'){
-        addTI('ameaca'); 
-        addTI('pressao');
-        if (ucSub === 'all' || ucSub === 'uce') {
-          addUC('ameaca','uce'); 
-          addUC('pressao','uce');
-        }
-        if (ucSub === 'all' || ucSub === 'ucf') {
-          addUC('ameaca','ucf'); 
-          addUC('pressao','ucf');
-        }
-      } else {
-        addTI(cls);
-        if (ucSub === 'all' || ucSub === 'uce') addUC(cls,'uce'); 
-        if (ucSub === 'all' || ucSub === 'ucf') addUC(cls,'ucf');
-      }
-      return t;
-    }
-    
-    return t;
-  }
 
-  /* ========================
-     Carregar dashboard - CORRIGIDO
-  ======================== */
-  async function loadDashboard(){
-    showLoader();
-    updateAttributeControlsVisibility();
-    try {
-      setTitles();
-
-      // CORREÇÃO: Aplicar filtro de jurisdição no carregamento dos dados
-      const basePath = '/dataset/ap/geojson/';
-      const scope = currentFilter;
-      const years = (selectedYear == null)
-        ? [2020,2021,2022,2023,2024,2025]
-        : [selectedYear, selectedYear - 1].filter(y => y >= 2020 && y <= 2025);
-
-      // CORREÇÃO: Garantir que o filtro de jurisdição seja aplicado no targetsFor
-      const allTargets = years.flatMap(y => targetsFor(scope, currentClass, y, ucSubtype)).filter(Boolean);
-      const results = await Promise.all(allTargets.map(f => safeFetch(basePath + f)));
-      geojsonData = mergeCollections(results.filter(Boolean));
-
-      // Menus dinâmicos + trimestre
-      populateDynamicMenus();
-      updateQuarterOptions();
-
-      const feats = geojsonData.features || [];
+    /* ========================
+      Controles UC - ATUALIZADA
+    ======================== */
+    function updateAttributeControlsVisibility() {
+      const filterContainer = document.querySelector('.filter-container');
+      const show = currentFilter === 'uc';
       
-      // CORREÇÃO: Filtro aprimorado que considera jurisdição UC
-      filteredData = feats.filter(f => {
-        const p = f.properties || {};
+      if (filterContainer) {
+        filterContainer.classList.toggle('uc-selected', show);
+      }
+
+      // Sincronizar os selects de Ano e Trimestre entre as duas posições
+      if (show) {
+        const yearValue = document.getElementById('yearFilter').value;
+        const quarterValue = document.getElementById('quarterFilter').value;
+        document.getElementById('yearFilterMiddle').value = yearValue;
+        document.getElementById('quarterFilterMiddle').value = quarterValue;
+      } else {
+        const yearValue = document.getElementById('yearFilterMiddle').value;
+        const quarterValue = document.getElementById('quarterFilterMiddle').value;
+        document.getElementById('yearFilter').value = yearValue;
+        document.getElementById('quarterFilter').value = quarterValue;
         
-        // Filtro de Ano
-        const anoOK = (selectedYear == null) ? true : (String(p.ano) === String(selectedYear));
-        
-        // Filtro de Trimestre
-        const q = getQuarter(p);
-        const triOK = (selectedQuarter == null) ? true : (q === selectedQuarter);
+        selectedCategoria = null;
+        selectedUso = null;
+        ucSubtype = 'all';
+        if (document.getElementById('categoryFilter')) 
+          document.getElementById('categoryFilter').value = 'all';
+        if (document.getElementById('usoFilter')) 
+          document.getElementById('usoFilter').value = 'all';
+        if (document.getElementById('jurisdictionFilter')) 
+          document.getElementById('jurisdictionFilter').value = 'all';
+      }
+    }
 
-        // Filtro de Estado
-        const codes = parseUFs(p.estado);
-        let estOK = true;
-        if (selectedEstado){
-          if (selectedEstado.includes('/')) estOK = arraysEqualAsSets(codes, parseUFs(selectedEstado));
-          else estOK = codes.includes(String(selectedEstado).toUpperCase());
-        }
+    /* ========================
+      Mapa - CORREÇÃO PARA FILTRO "TODOS"
+    ======================== */
+    function initializeMap(){
+      if (map) { try{ map.off(); map.remove(); }catch(e){} }
+      map = L.map('map', { zoomControl: true });
 
-        // CORREÇÃO: Filtro de Jurisdição para UC - VERIFICAÇÃO CORRIGIDA
-        let jurisdictionOK = true;
-        if (currentFilter === 'uc' && ucSubtype !== 'all') {
-          const modalidade = p.modalidade || '';
-          // CORREÇÃO: Comparação mais robusta
-          jurisdictionOK = modalidade.toLowerCase().includes(ucSubtype.toLowerCase());
-        }
+      if (!map.getPane('amzBase')){
+        map.createPane('amzBase');
+        map.getPane('amzBase').style.zIndex = 350;
+        map.getPane('amzBase').style.pointerEvents = 'none';
+      }
 
-        // Filtros adicionais
-        const usoOK = selectedUso ? (String(p.uso||'') === String(selectedUso)) : true;
-        const catOK = selectedCategoria ? (String(p.categoria||'') === String(selectedCategoria)) : true;
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+        subdomains: 'abcd', maxZoom: 20, crossOrigin: true
+      }).addTo(map);
 
-        return anoOK && triOK && estOK && jurisdictionOK && usoOK && catOK;
-      });
+      const BASE_GEOJSON_URL = '/dataset/AMZ_legal_amz_legal.geojson';
+      const amazoniaBounds = L.latLngBounds([[-18,-75],[6,-44]]);
+      let baseLayer = null;
 
-      // CORREÇÃO: Agregação para evitar duplicatas quando "Todos" está selecionado
+      function baseStyle() {
+        return { color:'#6B7280', weight:2.2, opacity:0.95, fill:false, fillOpacity:0 };
+      }
+      fetch(BASE_GEOJSON_URL, { cache: 'no-cache' })
+        .then(r => r.json())
+        .then(gj => {
+          try { if (baseLayer) map.removeLayer(baseLayer); } catch (_) {}
+          baseLayer = L.geoJSON(gj, { pane:'amzBase', style:baseStyle, interactive:false }).addTo(map);
+          const b = baseLayer.getBounds?.();
+          if (b && b.isValid()) map.fitBounds(b, { padding:[20,20] });
+          else map.fitBounds(amazoniaBounds, { padding:[20,20] });
+        })
+        .catch(e => {
+          console.error('Erro ao carregar base da Amazônia Legal:', e);
+          map.fitBounds(amazoniaBounds, { padding: [20, 20] });
+        });
+    }
+
+    function paintLayer(layer, color){
+      if (!layer) return;
+      if (layer.setStyle) layer.setStyle({ color, fillColor: color, weight:2, opacity:0.95, fillOpacity:0.6 });
+      if (layer.eachLayer) layer.eachLayer(child => paintLayer(child, color));
+    }
+
+    function updateMap(){
+      if (geojsonLayer){ try{ geojsonLayer.remove(); }catch(e){} }
+      featureLayerIndex = new Map();
+
+      // CORREÇÃO: Quando "Todos" está selecionado, precisamos agrupar as features por território
+      // e mostrar todos os ranks que cada território aparece
+      let featuresToDraw = [];
+      const featuresByKey = new Map();
+
       if (currentClass === 'Todos') {
-        const aggregatedData = new Map();
-        
-        filteredData.forEach(f => {
-          const p = f.properties || {};
-          const key = mkKey(p);
-          
-          if (!aggregatedData.has(key)) {
-            // Clona o feature e inicializa as células
-            aggregatedData.set(key, {
-              ...f,
-              properties: {
-                ...p,
-                celulas: 0,
-                class: 'Todos' // Marca como agregado
-              }
+        // Agrupa todas as features por chave do território
+        barItems.forEach((r, index) => {
+          const key = mkKey(r._f.properties || {});
+          if (!featuresByKey.has(key)) {
+            featuresByKey.set(key, {
+              feature: r._f,
+              ranks: [],
+              classes: [],
+              cells: []
             });
           }
-          
-          // Soma as células
-          const existing = aggregatedData.get(key);
-          existing.properties.celulas += cellValue(p);
+          const entry = featuresByKey.get(key);
+          entry.ranks.push(index + 1);
+          entry.classes.push(r._f.properties?.class || currentClass);
+          entry.cells.push(r.cells);
         });
-        
-        filteredData = Array.from(aggregatedData.values());
-      }
 
-      updateBarChart();
-      updateMap();
-      updateDonutCharts();
-      updateStatistics();
-      updateFilterDisplay();
-
-    } catch (err) {
-      console.error('Falha ao carregar dashboard:', err);
-    } finally {
-      hideLoader();
-    }
-  }
-
-  /* ========================
-     CORREÇÃO: Atualização visual dos filtros selecionados
-  ======================== */
-  function updateFilterDisplay() {
-    // Atualiza visualmente os selects para mostrar o que está selecionado
-    const yearSelect = document.getElementById('yearFilter');
-    const yearSelectMiddle = document.getElementById('yearFilterMiddle');
-    const quarterSelect = document.getElementById('quarterFilter');
-    const quarterSelectMiddle = document.getElementById('quarterFilterMiddle');
-    
-    if (yearSelect && selectedYear) {
-      yearSelect.value = selectedYear;
-    }
-    if (yearSelectMiddle && selectedYear) {
-      yearSelectMiddle.value = selectedYear;
-    }
-    if (quarterSelect && selectedQuarter) {
-      quarterSelect.value = selectedQuarter;
-    }
-    if (quarterSelectMiddle && selectedQuarter) {
-      quarterSelectMiddle.value = selectedQuarter;
-    }
-    
-    // Adiciona classe para destacar filtros ativos
-    const filterItems = document.querySelectorAll('.filter-item select');
-    filterItems.forEach(select => {
-      const parent = select.closest('.filter-item');
-      if (select.value && select.value !== 'all') {
-        parent.classList.add('filter-active');
+        // Para o mapa, usamos uma feature única por território, mas com informações consolidadas
+        featuresToDraw = Array.from(featuresByKey.values()).map(entry => {
+          // Clona a feature para não modificar a original
+          const clonedFeature = JSON.parse(JSON.stringify(entry.feature));
+          // Adiciona propriedades consolidadas
+          clonedFeature.properties._consolidated = true;
+          clonedFeature.properties._allRanks = entry.ranks;
+          clonedFeature.properties._allClasses = entry.classes;
+          clonedFeature.properties._allCells = entry.cells;
+          return clonedFeature;
+        });
       } else {
-        parent.classList.remove('filter-active');
+        // Comportamento normal para outros filtros
+        featuresToDraw = (barItems || []).map(r => r._f).filter(Boolean);
       }
-    });
-  }
 
-  /* ========================
-     Ranking (barra) - CORRIGIDO
-  ======================== */
-  function wrapLabelToTwoLines(label, maxLineLen=28){
-    const words = String(label).split(' ');
-    const lines = [''];
-    words.forEach(w=>{
-      const last = lines[lines.length-1];
-      if((last + ' ' + w).trim().length <= maxLineLen){
-        lines[lines.length-1] = (last ? last + ' ' : '') + w;
-      }else if(lines.length < 2){
-        lines.push(w);
-      }
-    });
-    if(lines.length > 2){ lines.length = 2; }
-
-    const allWordsLen = words.join(' ').length;
-    const joined = lines.join(' ');
-
-    if(joined.length < allWordsLen && lines.length === 2){
-      if(lines[1].length > 3){
-        lines[1] = lines[1].slice(0, Math.max(0, lines[1].length - 3)) + '...';
-      }else{
-        lines[1] = lines[1] + '...';
-      }
-    }
-    return lines;
-  }
-
-  let lastHoverIdx = null;
-
-  function getLayerCenter(layer){
-    try{
-      if (layer.getBounds){
-        const b = layer.getBounds();
-        if (b && b.isValid && b.isValid()) return b.getCenter();
-      }
-      if (layer.getLatLng) return layer.getLatLng();
-      let c = null; layer.eachLayer?.(l => { if(!c){ c = getLayerCenter(l); } });
-      return c;
-    }catch(e){ return null; }
-  }
-  function resetAllLayerStyles(){
-    featureLayerIndex.forEach((layer)=>{
-      const p = layer.feature?.properties || {};
-      const c = getColorFor(p);
-      paintLayer(layer, c);
-      if (layer.setStyle) layer.setStyle({ weight: 2, opacity: 0.95 });
-    });
-  }
-
-  function highlightBarOnMap(idx){
-    resetAllLayerStyles();
-    featureLayerIndex.forEach(layer => layer.closeTooltip?.());
-    if (idx == null) return;
-    const item  = barItems[idx];
-    const layer = featureLayerIndex.get(item.key);
-    if (!layer) return;
-    if (layer.bringToFront) layer.bringToFront();
-    if (layer.setStyle)     layer.setStyle({ weight: 4, opacity: 1 });
-  }
-
-  function updateBarChart() {
-    const ctx = document.getElementById('barChart').getContext('2d');
-    if (barChart) barChart.destroy();
-
-    // CORREÇÃO: Ordenação correta - primeiro por células (decrescente), depois por nome (crescente)
-    const rows = (filteredData || [])
-      .map(f => ({
-        name: f.properties?.nome || '-',
-        state: formatEstadoFull(f.properties?.estado || '-'),
-        cells: Number(f.properties?.celulas) || 0,
-        key: mkKey(f.properties || {}),
-        _f: f
-      }))
-      .sort((a, b) => {
-        // Primeiro critério: número de células (decrescente)
-        if (b.cells !== a.cells) {
-          return b.cells - a.cells;
-        }
-        // Segundo critério: ordem alfabética do nome (crescente)
-        return a.name.localeCompare(b.name);
-      })
-      .slice(0, 10);
-
-    const labels = rows.map(d => wrapLabelToTwoLines(d.name, 28));
-    const values = rows.map(d => d.cells);
-    barItems = rows;
-
-    const maxVal = values.reduce((m, v) => Math.max(m, v), 0);
-    const suggestedMax = maxVal > 0 ? Math.ceil(maxVal * 1.25) : 10;
-
-    const n = values.length || 1;
-    const tSeq = (from, to, n) =>
-      Array.from({ length: n }, (_, i) => from + (to - from) * (i / Math.max(1, n - 1)));
-    const colors = tSeq(0.9, 0.35, n).map(t =>
-      currentClass === 'Todos'   ? d3.interpolateGreys(t) :
-      currentClass === 'ameaca' ? d3.interpolateOranges(t) :
-                                  d3.interpolateReds(t)
-    );
-
-    colorMap = new Map();
-    rows.forEach((r, i) => colorMap.set(r.key, colors[i]));
-
-    const BAR_THICK = 20;
-    const RADIUS    = 6;
-
-    barChart = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Células',
-          data: values,
-          backgroundColor: colors,
-          borderColor: colors,
-          borderWidth: 0,
-          borderSkipped: false,
-          borderRadius: { topLeft:RADIUS, bottomLeft:RADIUS, topRight:RADIUS, bottomRight:RADIUS },
-          barThickness: BAR_THICK,
-          maxBarThickness: BAR_THICK,
-          barPercentage: 0.9,
-          categoryPercentage: 0.7,
-          clip: false
-        }]
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        layout: { padding: { top: 16, right: 48, left: 6, bottom: 12 } },
-
-        onHover: (evt, elements) => {
-          evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
-          const idx = elements.length ? elements[0].index : null;
-          if (idx !== lastHoverIdx) { lastHoverIdx = idx; highlightBarOnMap(idx); }
-        },
-        onClick: (evt, elements) => {
-          if (!elements.length) return;
-          const idx = elements[0].index;
-          const item = barItems[idx];
-          const layer = featureLayerIndex.get(item.key);
-          if (layer) zoomToLayer(layer);
-        },
-
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              title: (items) => {
-                const idx = items[0].dataIndex;
-                const cls = (barItems[idx]?._f?.properties?.class) || currentClass;
-                const clsTxt = cls === 'ameaca' ? 'Ameaça' : cls === 'pressao' ? 'Pressão' : 'Todos';
-                return `${barItems[idx].name} — ${clsTxt}`;
-              },
-              afterLabel: (ctx) => {
-                const st = barItems[ctx.dataIndex]?.state || '-';
-                return `\nEstado(s): ${st}`;
-              },
-              label: (ctx) => ` ${Number(ctx.parsed?.x ?? ctx.raw ?? 0).toLocaleString('pt-BR')} células`
-            }
-          },
-          datalabels: {
-            anchor: 'end',
-            align: 'end',
-            offset: 12,
-            clamp: false,
-            clip: false,
-            color: '#111',
-            font: { weight: '700', size: 12 },
-            formatter: v => Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
-          }
-        },
-
-        scales: {
-          x: {
-            beginAtZero: true,
-            suggestedMax,
-            grid: { display: false, drawBorder: false },
-            ticks: {
-              callback: v => Number(v).toLocaleString('pt-BR'),
-              font: { family: 'Montserrat' }
-            },
-            title: {
-              display: true,
-              text: 'Nº de células com ocorrência de desmatamento',
-              font: { family: 'Montserrat', weight: '700' }
-            }
-          },
-          y: {
-            grid: { display: false, drawBorder: false },
-            ticks: {
-              autoSkip: false,
-              font: ctx => ({ family: 'Montserrat', size: (ctx.chart.height || 400) < 360 ? 10 : 12 })
-            }
-          }
-        }
-      }
-    });
-  }
-
-  function zoomToLayer(layer){
-    try{
-      if (typeof layer.getBounds === 'function') {
-        const b = layer.getBounds();
-        if (b && b.isValid && b.isValid()) map.fitBounds(b, { padding:[30,30], maxZoom: 10 });
-        else if (layer.getLatLng) map.setView(layer.getLatLng(), 9);
-      } else if (layer.getLatLng) map.setView(layer.getLatLng(), 9);
-      layer.openPopup?.();
-      if (layer.setStyle) {
-        const orig = { color: layer.options.color, weight: layer.options.weight };
-        layer.setStyle({ color: '#000', weight: (orig.weight||2) + 2 });
-        setTimeout(()=> layer.setStyle(orig), 800);
-      }
-    }catch(e){}
-  }
-
-  /* ========================
-     Donuts
-  ======================== */
-  function makeAgg(features,keys){
-    const counts={}; let total=0;
-    (features||[]).forEach(f=>{
-      const p=f.properties||{}; let value=null;
-      for(const k of keys){ if(p[k]!==undefined && p[k]!==null && p[k]!==''){ value=p[k]; break; } }
-      if(value){ const c=parseInt(p.celulas)||0; counts[value]=(counts[value]||0)+c; total+=c; }
-    });
-    return { labels:Object.keys(counts), values:Object.values(counts), total };
-  }
-  function buildDonut(canvasId,legendId,labels,values,total, palette=null){
-    const ctx=document.getElementById(canvasId).getContext('2d');
-    if(chartsStore[canvasId]) chartsStore[canvasId].destroy();
-
-    const n = (labels?.length || 1);
-    let bg;
-
-    if (typeof palette === 'function') {
-      bg = labels.map((_,i)=> palette(n>1 ? i/(n-1) : 0));
-    } else if (Array.isArray(palette) && palette.length) {
-      const dom = palette.length >= 5 ? [0,0.25,0.5,0.75,1] : palette.map((_,i)=> (palette.length>1 ? i/(palette.length-1) : 0));
-      const seq = d3.scaleLinear().domain(dom).range(palette);
-      bg = labels.map((_,i)=> seq(n>1 ? i/(n-1) : 0));
-    } else {
-      const rainbow=d3.scaleSequential().domain([0,n]).interpolator(d3.interpolateRainbow);
-      bg = labels.map((_,i)=> rainbow(i));
-    }
-
-    const chart=new Chart(ctx,{
-      type:'doughnut',
-      data:{ labels, datasets:[{ data:values, backgroundColor:bg, borderColor:bg, borderWidth:1 }] },
-      options:{
-        responsive:true,
-        maintainAspectRatio:false,
-        cutout:'60%',
-        plugins:{
-          legend:{ display:false },
-          tooltip:{
-            callbacks:{
-              label:(c)=>{
-                const v=Number(c.raw||0);
-                const tot=(c.dataset.data||[]).reduce((a,b)=>a+Number(b||0),0);
-                const pct=tot?Math.round((v/tot)*100):0;
-                return `${c.label}: ${v.toLocaleString('pt-BR')} (${pct}%)`;
-              }
-            }
-          },
-          datalabels:{
-            display:(ctx)=>{
-              const d=ctx.dataset.data||[]; const sum=d.reduce((a,b)=>a+Number(b||0),0);
-              const v=Number(d[ctx.dataIndex]||0); const pct=sum?(v/sum)*100:0;
-              return pct>=3;
-            },
-            formatter:(v)=>Number(v||0).toFixed(0),
-            font:(ctx)=>{ const w=ctx.chart.width||300; const s=Math.max(12,Math.min(16,Math.round(w*.02))); return { weight:'bold', size:s }; },
-            color:'#000', textStrokeColor:'#fff', textStrokeWidth:3, anchor:'center', align:'center', offset:0, clip:false, padding:2
-          },
-          centerText:{ text:`${(total||0).toLocaleString('pt-BR')} células`, color:'#28a745', fontSize:22, fontFamily:'Montserrat', fontWeight:'700' },
-          htmlLegend:{ containerID:legendId }
-        }
-      }
-    });
-
-    chartsStore[canvasId]=chart;
-  }
-
-  function updateDonutCharts(){
-    ['donutChart1','donutChart2','donutChart3','donutChart4'].forEach(id=>{ if(chartsStore[id]) chartsStore[id].destroy(); chartsStore[id]=null; });
-
-    const aggUso = makeAgg(filteredData,['uso','categoria']);
-    const aggEst = makeAgg(filteredData,['estado']);
-    const aggMod = makeAgg(filteredData,['modalidade']);
-    const aggCat = makeAgg(filteredData,['categoria']);
-
-    const estadoLabelsFull = (aggEst.labels || []).map(formatEstadoFull);
-    const mapAll = (arr)=> (arr||[]).map(mapAcronymLabel);
-
-    const row1=document.getElementById('donuts-row-1');
-    const row2=document.getElementById('donuts-row-2');
-    const c1=document.getElementById('donut-col-1');
-    const c2=document.getElementById('donut-col-2');
-    const c3=document.getElementById('donut-col-3');
-    const c4=document.getElementById('donut-col-4');
-
-    if(currentFilter==='ti'){
-      row2.style.display='none'; c1.style.display='none'; c3.style.display='none'; c4.style.display='none';
-      c2.style.display=''; c2.classList.remove('col-lg-6'); c2.classList.add('col-lg-12');
-      buildDonut('donutChart2','legend-donutChart2', estadoLabelsFull, aggEst.values, aggEst.total, stateColor);
-    } else {
-      row2.style.display=''; c1.style.display=''; c2.style.display=''; c3.style.display=''; c4.style.display='';
-      c2.classList.remove('col-lg-12'); c2.classList.add('col-lg-6');
-
-      buildDonut('donutChart1','legend-donutChart1', aggUso.labels, aggUso.values, aggUso.total, DONUT1_PALETTE);
-      buildDonut('donutChart2','legend-donutChart2', estadoLabelsFull, aggEst.values, aggEst.total, stateColor);
-      buildDonut('donutChart3','legend-donutChart3', mapAll(aggMod.labels), aggMod.values, aggMod.total, modalityColor);
-      buildDonut('donutChart4','legend-donutChart4', mapAll(aggCat.labels), aggCat.values, aggCat.total, categoryColor);
-    }
-  }
-
-  /* ========================
-     Estatísticas
-  ======================== */
-  function updateStatistics(){
-    const feats = filteredData || [];
-    const totalRegistros = feats.length;
-    const totalCelulas   = feats.reduce((s, f) => s + cellValue(f?.properties || {}), 0);
-    const mediaCelulas   = totalRegistros ? totalCelulas / totalRegistros : 0;
-
-    let variacaoTxt = '—';
-    if (selectedYear != null) {
-      const prevYear = selectedYear - 1;
-      const prevSet = (geojsonData?.features || []).filter(f => {
-        const p = f.properties || {};
-        const anoOK = String(p.ano) === String(prevYear);
-        const q = getQuarter(p);
-        const triOK = (selectedQuarter == null) ? true : (q === selectedQuarter);
-
-        const codes = parseUFs(p.estado);
-        let estOK = true;
-        if (selectedEstado){
-          if (selectedEstado.includes('/')) estOK = arraysEqualAsSets(codes, parseUFs(selectedEstado));
-          else estOK = codes.includes(String(selectedEstado).toUpperCase());
-        }
-
-        // CORREÇÃO: Aplica os mesmos filtros de jurisdição para o ano anterior
-        let jurisdictionOK = true;
-        if (currentFilter === 'uc' && ucSubtype !== 'all') {
-          const modalidade = p.modalidade || '';
-          jurisdictionOK = modalidade.toLowerCase().includes(ucSubtype.toLowerCase());
-        }
-
-        const catOK = selectedCategoria  ? String(p.categoria||'') === String(selectedCategoria)  : true;
-        const usoOK = selectedUso ? String(p.uso||'') === String(selectedUso) : true;
-        return anoOK && triOK && estOK && jurisdictionOK && catOK && usoOK;
-      });
-
-      const prevCelulas = prevSet.reduce((s, f) => s + cellValue(f?.properties || {}), 0);
-      if (prevCelulas === 0 && totalCelulas === 0)      variacaoTxt = '0%';
-      else if (prevCelulas === 0)                       variacaoTxt = '+100%';
-      else {
-        const pct = ((totalCelulas - prevCelulas) / prevCelulas) * 100;
-        variacaoTxt = `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
-      }
-    }
-
-    document.getElementById('total-records').textContent    = totalCelulas.toLocaleString('pt-BR');
-    document.getElementById('total-cells').textContent      = Math.round(mediaCelulas).toLocaleString('pt-BR');
-    document.getElementById('filtered-records').textContent = totalRegistros.toLocaleString('pt-BR');
-    document.getElementById('unique-states').textContent    = variacaoTxt;
-  }
-
-  /* ========================
-     Filtros (estáticos + dinâmicos) - ATUALIZADA
-  ======================== */
-  function populateFilterOptions() {
-    // Ano
-    const yearSelect = document.getElementById('yearFilter');
-    const yearSelectMiddle = document.getElementById('yearFilterMiddle');
-    if (yearSelect && yearSelectMiddle) {
-      const years = [2025,2024,2023, 2022, 2021, 2020];
-      yearSelect.innerHTML = '<option value="all">Todos os Anos</option>';
-      yearSelectMiddle.innerHTML = '<option value="all">Todos os Anos</option>';
-      years.forEach(year => {
-        const option = document.createElement('option');
-        option.value = year;
-        option.textContent = year;
-        if (year === 2025) option.selected = true;
-        yearSelect.appendChild(option);
-        
-        const optionMiddle = document.createElement('option');
-        optionMiddle.value = year;
-        optionMiddle.textContent = year;
-        if (year === 2025) optionMiddle.selected = true;
-        yearSelectMiddle.appendChild(optionMiddle);
-      });
-    }
-
-    // Estado
-    const stateSelect = document.getElementById('stateFilter');
-    if (stateSelect) {
-      const estados = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
-      stateSelect.innerHTML = '<option value="all">Amazônia Legal</option>';
-      estados.forEach(estado => {
-        const option = document.createElement('option');
-        option.value = estado;
-        option.textContent = estado;
-        stateSelect.appendChild(option);
-      });
-    }
-
-    // Categoria
-    const categorySelect = document.getElementById('categoryFilter');
-    if (categorySelect) {
-      const categories = ['Floresta','Cerrado','Caatinga','Mata Atlântica','Pampa','Pantanal'];
-      categorySelect.innerHTML = '<option value="all">Todos</option>';
-      categories.forEach(category => {
-        const option = document.createElement('option');
-        option.value = category;
-        option.textContent = category;
-        categorySelect.appendChild(option);
-      });
-    }
-
-    // Tipo de Uso
-    const usoSelect = document.getElementById('usoFilter');
-    if (usoSelect) {
-      usoSelect.innerHTML = '<option value="all">Todos</option>';
-    }
-
-    updateQuarterOptions();
-  }
-
-  /* ========================
-     CORREÇÃO: Atualização de trimestres com fallback para "Todos"
-  ======================== */
-  function updateQuarterOptions(updateMiddle = false) {
-    const year = updateMiddle ? document.getElementById('yearFilterMiddle').value : document.getElementById('yearFilter').value;
-    
-    // Obter trimestres disponíveis para o ano selecionado
-    const quarters = year !== 'all' ? quartersForDownloads(parseInt(year)) : [1,2,3,4];
-    
-    // Atualizar o select principal
-    const quarterSelect = document.getElementById('quarterFilter');
-    if (quarterSelect) {
-      const currentQuarter = quarterSelect.value;
-      quarterSelect.innerHTML = '<option value="all">Todos os Trimestres</option>';
-      if (year !== 'all') {
-        quarters.forEach(q => {
-          const option = document.createElement('option');
-          option.value = q;
-          const legenda = legendForDownloads(parseInt(year), q) || `T${q}`;
-          option.textContent = `T${q} — ${legenda}`;
-          quarterSelect.appendChild(option);
+      const rankByKey = new Map();
+      
+      if (currentClass === 'Todos') {
+        // Para "Todos", cada território pode ter múltiplos ranks
+        featuresByKey.forEach((entry, key) => {
+          rankByKey.set(key, {
+            ranks: entry.ranks,
+            classes: entry.classes
+          });
         });
+      } else {
+        // Comportamento normal para outros filtros
+        (barItems || []).forEach((r, i) => rankByKey.set(mkKey(r?._f?.properties || {}), i + 1));
       }
 
-      // CORREÇÃO: Se o trimestre atual não estiver disponível, voltar para "Todos"
-      if (year !== 'all' && currentQuarter !== 'all' && !quarters.includes(parseInt(currentQuarter))) {
-        quarterSelect.value = 'all';
-        selectedQuarter = null;
+      // CORREÇÃO: Tooltip aprimorado para mostrar múltiplos ranks quando aplicável
+      const buildHoverHTML = (p, rankInfo) => {
+        let rankHTML = '';
         
+        if (currentClass === 'Todos' && rankInfo && rankInfo.ranks) {
+          // Mostra todos os ranks para o território
+          rankHTML = `<div><b>Posições no Ranking:</b><br/>`;
+          rankInfo.ranks.forEach((rank, index) => {
+            const classe = rankInfo.classes[index];
+            const classeTexto = classe === 'ameaca' ? 'Ameaça' : classe === 'pressao' ? 'Pressão' : 'Geral';
+            rankHTML += `#${rank}° (${classeTexto})<br/>`;
+          });
+          rankHTML += `</div>`;
+        } else if (rankInfo) {
+          // Comportamento normal para um único rank
+          rankHTML = `<div><b>Posição no Ranking:</b> #${rankInfo}°</div>`;
+        }
+        
+        return `
+          <div style="font-family:Montserrat,sans-serif;min-width:240px">
+            <div style="font-weight:700;font-size:14px;margin-bottom:6px">${p.nome || '-'}</div>
+            ${rankHTML}
+            <div><b>Estado:</b> ${formatEstadoFull(p.estado)}</div>
+            <div><b>Categoria:</b> ${mapAcronymLabel(p.categoria ?? '-')}</div>
+            <div><b>Modalidade:</b> ${mapAcronymLabel(p.modalidade || '-')}</div>
+            <div><b>Uso:</b> ${p.uso || '-'}</div>
+            <div><b>Células:</b> ${Number(p.celulas || 0).toLocaleString('pt-BR')}</div>
+            <div><b>Ano:</b> ${p.ano || '-'} &nbsp; <b>Trimestre:</b> ${periodLabel(p)}</div>
+            ${currentClass === 'Todos' && p._allCells ? `<div><b>Células por categoria:</b><br/>${p._allClasses.map((classe, idx) => `${classe === 'ameaca' ? 'Ameaça' : 'Pressão'}: ${p._allCells[idx].toLocaleString('pt-BR')}`).join('<br/>')}</div>` : ''}
+          </div>`;
+      };
+
+      const mapFeatures = [];
+      geojsonLayer = L.geoJSON(featuresToDraw, {
+        style: f => {
+          const c = getColorFor(f.properties || {});
+          return { color:c, fillColor:c, weight:2, opacity:0.95, fillOpacity:0.6 };
+        },
+        pointToLayer: (f, latlng) => L.circleMarker(latlng, {
+          radius:6, weight:1,
+          color:getColorFor(f.properties||{}),
+          fillColor:getColorFor(f.properties||{}),
+          fillOpacity:0.7
+        }),
+        onEachFeature: (f, layer) => {
+          const p = f.properties || {};
+          const key = mkKey(p);
+          featureLayerIndex.set(key, layer);
+          mapFeatures.push(layer);
+
+          layer.unbindPopup?.();
+
+          const rankInfo = rankByKey.get(key) || null;
+          layer.bindTooltip(buildHoverHTML(p, rankInfo),
+            { sticky:true, direction:'top', opacity:1, className:'ap-hover-card' });
+
+          layer.on('mouseover', () => {
+            layer.bringToFront?.();
+            layer.setStyle?.({ weight:4, opacity:1 });
+          });
+          layer.on('mouseout', () => {
+            const c = getColorFor(p);
+            paintLayer(layer, c);
+            layer.setStyle?.({ weight:2, opacity:0.95 });
+          });
+
+          paintLayer(layer, getColorFor(p));
+        }
+      }).addTo(map);
+
+      if (mapFeatures.length > 0) {
+        try { map.fitBounds(geojsonLayer.getBounds(), { padding:[20,20] }); } catch(e){}
+      }
+    }
+
+    /* ========================
+      Botões / eventos - ATUALIZADA
+    ======================== */
+    function setupButtons(){
+      document.getElementById('typeFilter').addEventListener('change', (e) => {
+        currentClass = e.target.value;
+        updateFilterDisplay();
+        loadDashboard();
+      });
+      
+      document.getElementById('areaFilter').addEventListener('change', (e) => {
+        currentFilter = e.target.value === 'all' ? null : e.target.value;
+        updateAttributeControlsVisibility();
+        updateFilterDisplay();
+        loadDashboard();
+      });
+      
+      document.getElementById('yearFilter').addEventListener('change', (e) => {
+        selectedYear = e.target.value === 'all' ? null : parseInt(e.target.value);
+        updateQuarterOptions();
         // Sincronizar com o select do meio se UC estiver selecionado
         if (currentFilter === 'uc') {
-          document.getElementById('quarterFilterMiddle').value = 'all';
+          document.getElementById('yearFilterMiddle').value = e.target.value;
         }
+        updateFilterDisplay();
+      });
+      
+      document.getElementById('quarterFilter').addEventListener('change', (e) => {
+        selectedQuarter = e.target.value === 'all' ? null : parseInt(e.target.value);
+        // Sincronizar com o select do meio se UC estiver selecionado
+        if (currentFilter === 'uc') {
+          document.getElementById('quarterFilterMiddle').value = e.target.value;
+        }
+        updateFilterDisplay();
+      });
+      
+      // Event listeners para os selects do meio (quando UC está selecionado)
+      document.getElementById('yearFilterMiddle').addEventListener('change', (e) => {
+        selectedYear = e.target.value === 'all' ? null : parseInt(e.target.value);
+        updateQuarterOptions(true); // true indica que é para atualizar o select do meio
+        updateFilterDisplay();
+      });
+      
+      document.getElementById('quarterFilterMiddle').addEventListener('change', (e) => {
+        selectedQuarter = e.target.value === 'all' ? null : parseInt(e.target.value);
+        updateFilterDisplay();
+      });
+      
+      document.getElementById('stateFilter').addEventListener('change', (e) => {
+        selectedEstado = e.target.value === 'all' ? null : e.target.value;
+        updateFilterDisplay();
+      });
+      
+      // Filtro de Uso
+      document.getElementById('usoFilter').addEventListener('change', (e) => {
+        selectedUso = e.target.value === 'all' ? null : e.target.value;
+        updateFilterDisplay();
+      });
+      
+      document.getElementById('categoryFilter').addEventListener('change', (e) => {
+        selectedCategoria = e.target.value === 'all' ? null : e.target.value;
+        updateFilterDisplay();
+      });
+      
+      document.getElementById('jurisdictionFilter').addEventListener('change', (e) => {
+        const val = e.target.value;
+        ucSubtype = val === 'all' ? 'all' : (val === 'Federal' ? 'ucf' : 'uce');
+        updateFilterDisplay();
+      });
+
+      document.getElementById('applyFilters').addEventListener('click', () => {
+        loadDashboard();
+      });
+
+      document.getElementById('clearFilters').addEventListener('click', () => {
+        document.getElementById('typeFilter').value = 'ameaca';
+        document.getElementById('areaFilter').value = 'all';
+        document.getElementById('yearFilter').value = 'all';
+        document.getElementById('quarterFilter').value = 'all';
+        document.getElementById('yearFilterMiddle').value = 'all';
+        document.getElementById('quarterFilterMiddle').value = 'all';
+        document.getElementById('stateFilter').value = 'all';
+        document.getElementById('usoFilter').value = 'all';
+        document.getElementById('categoryFilter').value = 'all';
+        document.getElementById('jurisdictionFilter').value = 'all';
+
+        currentClass = 'ameaca';
+        currentFilter = null;
+        selectedYear = null;
+        selectedQuarter = null;
+        selectedEstado = null;
+        selectedUso = null;
+        selectedCategoria = null;
+        ucSubtype = 'all';
+
+        updateAttributeControlsVisibility();
+        updateQuarterOptions();
+        updateFilterDisplay();
+        loadDashboard();
+      });
+    }
+
+    /* ========================
+      Loader
+    ======================== */
+    function showLoader(msg="Carregando dados..."){
+      const l=document.getElementById('loader-overlay'); if(!l) return;
+      const t=l.querySelector('.loader-text'); if(t) t.textContent=msg;
+      l.style.display='flex';
+    }
+    function hideLoader(){
+      const l=document.getElementById('loader-overlay'); if(l) l.style.display='none';
+    }
+
+    /* ========================
+      Fetch/merge
+    ======================== */
+    async function safeFetch(url){
+      try{
+        const res = await fetch(url);
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+      }catch(e){
+        console.warn('Erro ao carregar', url, e.message);
+        return null;
+      }
+    }
+    function mergeCollections(collections){
+      const all = [];
+      collections.forEach(c => { if(c && Array.isArray(c.features)) all.push(...c.features); });
+      return { type:'FeatureCollection', features: all };
+    }
+
+    /* ========================
+      CORREÇÃO: Targets para UC com jurisdição
+    ======================== */
+    function targetsFor(scope, cls, year, ucSub){
+      const t = [];
+      const addUC = (c, sub) => { 
+        // CORREÇÃO: Só adiciona se o subtipo corresponder ou for 'all'
+        if (ucSub === 'all' || sub === ucSub) {
+          t.push(filename('uc', c, year, sub)); 
+        }
+      };
+      
+      const addTI = (c) => { t.push(filename('ti', c, year)); };
+
+      if(scope === null){
+        if(cls === 'Todos'){ 
+          t.push(filename(null,'ameaca',year)); 
+          t.push(filename(null,'pressao',year)); 
+        } else { 
+          t.push(filename(null,cls,year)); 
+        }
+        return t;
+      }
+      
+      if(scope === 'ti'){
+        if(cls === 'Todos'){ 
+          addTI('ameaca'); 
+          addTI('pressao'); 
+        } else { 
+          addTI(cls); 
+        }
+        return t;
+      }
+      
+      if(scope === 'uc'){
+        if(cls === 'Todos'){
+          // CORREÇÃO: Considera jurisdição específica
+          if (ucSub === 'all' || ucSub === 'uce') {
+            addUC('ameaca','uce'); 
+            addUC('pressao','uce');
+          }
+          if (ucSub === 'all' || ucSub === 'ucf') {
+            addUC('ameaca','ucf'); 
+            addUC('pressao','ucf');
+          }
+        } else {
+          if (ucSub === 'all' || ucSub === 'uce') addUC(cls,'uce'); 
+          if (ucSub === 'all' || ucSub === 'ucf') addUC(cls,'ucf');
+        }
+        return t;
+      }
+      
+      if(scope === 'allap'){
+        if(cls === 'Todos'){
+          addTI('ameaca'); 
+          addTI('pressao');
+          if (ucSub === 'all' || ucSub === 'uce') {
+            addUC('ameaca','uce'); 
+            addUC('pressao','uce');
+          }
+          if (ucSub === 'all' || ucSub === 'ucf') {
+            addUC('ameaca','ucf'); 
+            addUC('pressao','ucf');
+          }
+        } else {
+          addTI(cls);
+          if (ucSub === 'all' || ucSub === 'uce') addUC(cls,'uce'); 
+          if (ucSub === 'all' || ucSub === 'ucf') addUC(cls,'ucf');
+        }
+        return t;
+      }
+      
+      return t;
+    }
+
+    /* ========================
+      Carregar dashboard - CORRIGIDO
+    ======================== */
+    async function loadDashboard(){
+      showLoader();
+      updateAttributeControlsVisibility();
+      try {
+        setTitles();
+
+        // CORREÇÃO: Aplicar filtro de jurisdição no carregamento dos dados
+        const basePath = '/dataset/ap/geojson/';
+        const scope = currentFilter;
+        const years = (selectedYear == null)
+          ? [2020,2021,2022,2023,2024,2025]
+          : [selectedYear, selectedYear - 1].filter(y => y >= 2020 && y <= 2025);
+
+        // CORREÇÃO: Garantir que o filtro de jurisdição seja aplicado no targetsFor
+        const allTargets = years.flatMap(y => targetsFor(scope, currentClass, y, ucSubtype)).filter(Boolean);
+        const results = await Promise.all(allTargets.map(f => safeFetch(basePath + f)));
+        geojsonData = mergeCollections(results.filter(Boolean));
+
+        // Menus dinâmicos + trimestre
+        populateDynamicMenus();
+        updateQuarterOptions();
+
+        const feats = geojsonData.features || [];
+        
+        // CORREÇÃO: Filtro aprimorado que considera jurisdição UC
+        filteredData = feats.filter(f => {
+          const p = f.properties || {};
+          
+          // Filtro de Ano
+          const anoOK = (selectedYear == null) ? true : (String(p.ano) === String(selectedYear));
+          
+          // Filtro de Trimestre
+          const q = getQuarter(p);
+          const triOK = (selectedQuarter == null) ? true : (q === selectedQuarter);
+
+          // Filtro de Estado
+          const codes = parseUFs(p.estado);
+          let estOK = true;
+          if (selectedEstado){
+            if (selectedEstado.includes('/')) estOK = arraysEqualAsSets(codes, parseUFs(selectedEstado));
+            else estOK = codes.includes(String(selectedEstado).toUpperCase());
+          }
+
+          // CORREÇÃO: Filtro de Jurisdição para UC - VERIFICAÇÃO CORRIGIDA
+          let jurisdictionOK = true;
+          if (currentFilter === 'uc' && ucSubtype !== 'all') {
+            const modalidade = p.modalidade || '';
+            // CORREÇÃO: Comparação mais robusta
+            jurisdictionOK = modalidade.toLowerCase().includes(ucSubtype.toLowerCase());
+          }
+
+          // Filtros adicionais
+          const usoOK = selectedUso ? (String(p.uso||'') === String(selectedUso)) : true;
+          const catOK = selectedCategoria ? (String(p.categoria||'') === String(selectedCategoria)) : true;
+
+          return anoOK && triOK && estOK && jurisdictionOK && usoOK && catOK;
+        });
+
+        // CORREÇÃO: Agregação para evitar duplicatas quando "Todos" está selecionado
+        if (currentClass === 'Todos') {
+          const aggregatedData = new Map();
+          
+          filteredData.forEach(f => {
+            const p = f.properties || {};
+            const key = mkKey(p);
+            
+            if (!aggregatedData.has(key)) {
+              // Clona o feature e inicializa as células
+              aggregatedData.set(key, {
+                ...f,
+                properties: {
+                  ...p,
+                  celulas: 0,
+                  class: 'Todos' // Marca como agregado
+                }
+              });
+            }
+            
+            // Soma as células
+            const existing = aggregatedData.get(key);
+            existing.properties.celulas += cellValue(p);
+          });
+          
+          filteredData = Array.from(aggregatedData.values());
+        }
+
+        updateBarChart();
+        updateMap();
+        updateDonutCharts();
+        updateStatistics();
+        updateFilterDisplay();
+
+      } catch (err) {
+        console.error('Falha ao carregar dashboard:', err);
+      } finally {
+        hideLoader();
       }
     }
 
-    // Atualizar o select do meio (se necessário)
-    const quarterSelectMiddle = document.getElementById('quarterFilterMiddle');
-    if (quarterSelectMiddle) {
-      const currentQuarter = quarterSelectMiddle.value;
-      quarterSelectMiddle.innerHTML = '<option value="all">Todos os Trimestres</option>';
-      if (year !== 'all') {
-        quarters.forEach(q => {
+    /* ========================
+      CORREÇÃO: Atualização visual dos filtros selecionados
+    ======================== */
+    function updateFilterDisplay() {
+      // Atualiza visualmente os selects para mostrar o que está selecionado
+      const yearSelect = document.getElementById('yearFilter');
+      const yearSelectMiddle = document.getElementById('yearFilterMiddle');
+      const quarterSelect = document.getElementById('quarterFilter');
+      const quarterSelectMiddle = document.getElementById('quarterFilterMiddle');
+      
+      if (yearSelect && selectedYear) {
+        yearSelect.value = selectedYear;
+      }
+      if (yearSelectMiddle && selectedYear) {
+        yearSelectMiddle.value = selectedYear;
+      }
+      if (quarterSelect && selectedQuarter) {
+        quarterSelect.value = selectedQuarter;
+      }
+      if (quarterSelectMiddle && selectedQuarter) {
+        quarterSelectMiddle.value = selectedQuarter;
+      }
+      
+      // Adiciona classe para destacar filtros ativos
+      const filterItems = document.querySelectorAll('.filter-item select');
+      filterItems.forEach(select => {
+        const parent = select.closest('.filter-item');
+        if (select.value && select.value !== 'all') {
+          parent.classList.add('filter-active');
+        } else {
+          parent.classList.remove('filter-active');
+        }
+      });
+    }
+
+    /* ========================
+      Ranking (barra) - CORRIGIDO
+    ======================== */
+    function wrapLabelToTwoLines(label, maxLineLen=28){
+      const words = String(label).split(' ');
+      const lines = [''];
+      words.forEach(w=>{
+        const last = lines[lines.length-1];
+        if((last + ' ' + w).trim().length <= maxLineLen){
+          lines[lines.length-1] = (last ? last + ' ' : '') + w;
+        }else if(lines.length < 2){
+          lines.push(w);
+        }
+      });
+      if(lines.length > 2){ lines.length = 2; }
+
+      const allWordsLen = words.join(' ').length;
+      const joined = lines.join(' ');
+
+      if(joined.length < allWordsLen && lines.length === 2){
+        if(lines[1].length > 3){
+          lines[1] = lines[1].slice(0, Math.max(0, lines[1].length - 3)) + '...';
+        }else{
+          lines[1] = lines[1] + '...';
+        }
+      }
+      return lines;
+    }
+
+    let lastHoverIdx = null;
+
+    function getLayerCenter(layer){
+      try{
+        if (layer.getBounds){
+          const b = layer.getBounds();
+          if (b && b.isValid && b.isValid()) return b.getCenter();
+        }
+        if (layer.getLatLng) return layer.getLatLng();
+        let c = null; layer.eachLayer?.(l => { if(!c){ c = getLayerCenter(l); } });
+        return c;
+      }catch(e){ return null; }
+    }
+    function resetAllLayerStyles(){
+      featureLayerIndex.forEach((layer)=>{
+        const p = layer.feature?.properties || {};
+        const c = getColorFor(p);
+        paintLayer(layer, c);
+        if (layer.setStyle) layer.setStyle({ weight: 2, opacity: 0.95 });
+      });
+    }
+
+    function highlightBarOnMap(idx){
+      resetAllLayerStyles();
+      featureLayerIndex.forEach(layer => layer.closeTooltip?.());
+      if (idx == null) return;
+      const item  = barItems[idx];
+      const layer = featureLayerIndex.get(item.key);
+      if (!layer) return;
+      if (layer.bringToFront) layer.bringToFront();
+      if (layer.setStyle)     layer.setStyle({ weight: 4, opacity: 1 });
+    }
+
+    function updateBarChart() {
+      const ctx = document.getElementById('barChart').getContext('2d');
+      if (barChart) barChart.destroy();
+
+      // CORREÇÃO: Ordenação correta - primeiro por células (decrescente), depois por nome (crescente)
+      const rows = (filteredData || [])
+        .map(f => ({
+          name: f.properties?.nome || '-',
+          state: formatEstadoFull(f.properties?.estado || '-'),
+          cells: Number(f.properties?.celulas) || 0,
+          key: mkKey(f.properties || {}),
+          _f: f
+        }))
+        .sort((a, b) => {
+          // Primeiro critério: número de células (decrescente)
+          if (b.cells !== a.cells) {
+            return b.cells - a.cells;
+          }
+          // Segundo critério: ordem alfabética do nome (crescente)
+          return a.name.localeCompare(b.name);
+        })
+        .slice(0, 10);
+
+      const labels = rows.map(d => wrapLabelToTwoLines(d.name, 28));
+      const values = rows.map(d => d.cells);
+      barItems = rows;
+
+      const maxVal = values.reduce((m, v) => Math.max(m, v), 0);
+      const suggestedMax = maxVal > 0 ? Math.ceil(maxVal * 1.25) : 10;
+
+      const n = values.length || 1;
+      const tSeq = (from, to, n) =>
+        Array.from({ length: n }, (_, i) => from + (to - from) * (i / Math.max(1, n - 1)));
+      const colors = tSeq(0.9, 0.35, n).map(t =>
+        currentClass === 'Todos'   ? d3.interpolateGreys(t) :
+        currentClass === 'ameaca' ? d3.interpolateOranges(t) :
+                                    d3.interpolateReds(t)
+      );
+
+      colorMap = new Map();
+      rows.forEach((r, i) => colorMap.set(r.key, colors[i]));
+
+      const BAR_THICK = 20;
+      const RADIUS    = 6;
+
+      barChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Células',
+            data: values,
+            backgroundColor: colors,
+            borderColor: colors,
+            borderWidth: 0,
+            borderSkipped: false,
+            borderRadius: { topLeft:RADIUS, bottomLeft:RADIUS, topRight:RADIUS, bottomRight:RADIUS },
+            barThickness: BAR_THICK,
+            maxBarThickness: BAR_THICK,
+            barPercentage: 0.9,
+            categoryPercentage: 0.7,
+            clip: false
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { top: 16, right: 48, left: 6, bottom: 12 } },
+
+          onHover: (evt, elements) => {
+            evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+            const idx = elements.length ? elements[0].index : null;
+            if (idx !== lastHoverIdx) { lastHoverIdx = idx; highlightBarOnMap(idx); }
+          },
+          onClick: (evt, elements) => {
+            if (!elements.length) return;
+            const idx = elements[0].index;
+            const item = barItems[idx];
+            const layer = featureLayerIndex.get(item.key);
+            if (layer) zoomToLayer(layer);
+          },
+
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                title: (items) => {
+                  const idx = items[0].dataIndex;
+                  const cls = (barItems[idx]?._f?.properties?.class) || currentClass;
+                  const clsTxt = cls === 'ameaca' ? 'Ameaça' : cls === 'pressao' ? 'Pressão' : 'Todos';
+                  return `${barItems[idx].name} — ${clsTxt}`;
+                },
+                afterLabel: (ctx) => {
+                  const st = barItems[ctx.dataIndex]?.state || '-';
+                  return `\nEstado(s): ${st}`;
+                },
+                label: (ctx) => ` ${Number(ctx.parsed?.x ?? ctx.raw ?? 0).toLocaleString('pt-BR')} células`
+              }
+            },
+            datalabels: {
+              anchor: 'end',
+              align: 'end',
+              offset: 12,
+              clamp: false,
+              clip: false,
+              color: '#111',
+              font: { weight: '700', size: 12 },
+              formatter: v => Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
+            }
+          },
+
+          scales: {
+            x: {
+              beginAtZero: true,
+              suggestedMax,
+              grid: { display: false, drawBorder: false },
+              ticks: {
+                callback: v => Number(v).toLocaleString('pt-BR'),
+                font: { family: 'Montserrat' }
+              },
+              title: {
+                display: true,
+                text: 'Nº de células com ocorrência de desmatamento',
+                font: { family: 'Montserrat', weight: '700' }
+              }
+            },
+            y: {
+              grid: { display: false, drawBorder: false },
+              ticks: {
+                autoSkip: false,
+                font: ctx => ({ family: 'Montserrat', size: (ctx.chart.height || 400) < 360 ? 10 : 12 })
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function zoomToLayer(layer){
+      try{
+        if (typeof layer.getBounds === 'function') {
+          const b = layer.getBounds();
+          if (b && b.isValid && b.isValid()) map.fitBounds(b, { padding:[30,30], maxZoom: 10 });
+          else if (layer.getLatLng) map.setView(layer.getLatLng(), 9);
+        } else if (layer.getLatLng) map.setView(layer.getLatLng(), 9);
+        layer.openPopup?.();
+        if (layer.setStyle) {
+          const orig = { color: layer.options.color, weight: layer.options.weight };
+          layer.setStyle({ color: '#000', weight: (orig.weight||2) + 2 });
+          setTimeout(()=> layer.setStyle(orig), 800);
+        }
+      }catch(e){}
+    }
+
+    /* ========================
+      Donuts
+    ======================== */
+    function makeAgg(features,keys){
+      const counts={}; let total=0;
+      (features||[]).forEach(f=>{
+        const p=f.properties||{}; let value=null;
+        for(const k of keys){ if(p[k]!==undefined && p[k]!==null && p[k]!==''){ value=p[k]; break; } }
+        if(value){ const c=parseInt(p.celulas)||0; counts[value]=(counts[value]||0)+c; total+=c; }
+      });
+      return { labels:Object.keys(counts), values:Object.values(counts), total };
+    }
+    function buildDonut(canvasId,legendId,labels,values,total, palette=null){
+      const ctx=document.getElementById(canvasId).getContext('2d');
+      if(chartsStore[canvasId]) chartsStore[canvasId].destroy();
+
+      const n = (labels?.length || 1);
+      let bg;
+
+      if (typeof palette === 'function') {
+        bg = labels.map((_,i)=> palette(n>1 ? i/(n-1) : 0));
+      } else if (Array.isArray(palette) && palette.length) {
+        const dom = palette.length >= 5 ? [0,0.25,0.5,0.75,1] : palette.map((_,i)=> (palette.length>1 ? i/(palette.length-1) : 0));
+        const seq = d3.scaleLinear().domain(dom).range(palette);
+        bg = labels.map((_,i)=> seq(n>1 ? i/(n-1) : 0));
+      } else {
+        const rainbow=d3.scaleSequential().domain([0,n]).interpolator(d3.interpolateRainbow);
+        bg = labels.map((_,i)=> rainbow(i));
+      }
+
+      const chart=new Chart(ctx,{
+        type:'doughnut',
+        data:{ labels, datasets:[{ data:values, backgroundColor:bg, borderColor:bg, borderWidth:1 }] },
+        options:{
+          responsive:true,
+          maintainAspectRatio:false,
+          cutout:'60%',
+          plugins:{
+            legend:{ display:false },
+            tooltip:{
+              callbacks:{
+                label:(c)=>{
+                  const v=Number(c.raw||0);
+                  const tot=(c.dataset.data||[]).reduce((a,b)=>a+Number(b||0),0);
+                  const pct=tot?Math.round((v/tot)*100):0;
+                  return `${c.label}: ${v.toLocaleString('pt-BR')} (${pct}%)`;
+                }
+              }
+            },
+            datalabels:{
+              display:(ctx)=>{
+                const d=ctx.dataset.data||[]; const sum=d.reduce((a,b)=>a+Number(b||0),0);
+                const v=Number(d[ctx.dataIndex]||0); const pct=sum?(v/sum)*100:0;
+                return pct>=3;
+              },
+              formatter:(v)=>Number(v||0).toFixed(0),
+              font:(ctx)=>{ const w=ctx.chart.width||300; const s=Math.max(12,Math.min(16,Math.round(w*.02))); return { weight:'bold', size:s }; },
+              color:'#000', textStrokeColor:'#fff', textStrokeWidth:3, anchor:'center', align:'center', offset:0, clip:false, padding:2
+            },
+            centerText:{ text:`${(total||0).toLocaleString('pt-BR')} células`, color:'#28a745', fontSize:22, fontFamily:'Montserrat', fontWeight:'700' },
+            htmlLegend:{ containerID:legendId }
+          }
+        }
+      });
+
+      chartsStore[canvasId]=chart;
+    }
+
+    function updateDonutCharts(){
+      ['donutChart1','donutChart2','donutChart3','donutChart4'].forEach(id=>{ if(chartsStore[id]) chartsStore[id].destroy(); chartsStore[id]=null; });
+
+      const aggUso = makeAgg(filteredData,['uso','categoria']);
+      const aggEst = makeAgg(filteredData,['estado']);
+      const aggMod = makeAgg(filteredData,['modalidade']);
+      const aggCat = makeAgg(filteredData,['categoria']);
+
+      const estadoLabelsFull = (aggEst.labels || []).map(formatEstadoFull);
+      const mapAll = (arr)=> (arr||[]).map(mapAcronymLabel);
+
+      const row1=document.getElementById('donuts-row-1');
+      const row2=document.getElementById('donuts-row-2');
+      const c1=document.getElementById('donut-col-1');
+      const c2=document.getElementById('donut-col-2');
+      const c3=document.getElementById('donut-col-3');
+      const c4=document.getElementById('donut-col-4');
+
+      if(currentFilter==='ti'){
+        row2.style.display='none'; c1.style.display='none'; c3.style.display='none'; c4.style.display='none';
+        c2.style.display=''; c2.classList.remove('col-lg-6'); c2.classList.add('col-lg-12');
+        buildDonut('donutChart2','legend-donutChart2', estadoLabelsFull, aggEst.values, aggEst.total, stateColor);
+      } else {
+        row2.style.display=''; c1.style.display=''; c2.style.display=''; c3.style.display=''; c4.style.display='';
+        c2.classList.remove('col-lg-12'); c2.classList.add('col-lg-6');
+
+        buildDonut('donutChart1','legend-donutChart1', aggUso.labels, aggUso.values, aggUso.total, DONUT1_PALETTE);
+        buildDonut('donutChart2','legend-donutChart2', estadoLabelsFull, aggEst.values, aggEst.total, stateColor);
+        buildDonut('donutChart3','legend-donutChart3', mapAll(aggMod.labels), aggMod.values, aggMod.total, modalityColor);
+        buildDonut('donutChart4','legend-donutChart4', mapAll(aggCat.labels), aggCat.values, aggCat.total, categoryColor);
+      }
+    }
+
+    /* ========================
+      Estatísticas
+    ======================== */
+function updateStatistics(){
+  const feats = filteredData || [];
+  const totalRegistros = feats.length;
+  const totalCelulas   = feats.reduce((s, f) => s + cellValue(f?.properties || {}), 0);
+  const mediaCelulas   = totalRegistros ? totalCelulas / totalRegistros : 0;
+
+  document.getElementById('total-records').textContent    = totalCelulas.toLocaleString('pt-BR');
+  document.getElementById('total-cells').textContent      = Math.round(mediaCelulas).toLocaleString('pt-BR');
+  document.getElementById('filtered-records').textContent = totalRegistros.toLocaleString('pt-BR');
+}
+
+
+    /* ========================
+      Filtros (estáticos + dinâmicos) - ATUALIZADA
+    ======================== */
+    function populateFilterOptions() {
+      // Ano
+      const yearSelect = document.getElementById('yearFilter');
+      const yearSelectMiddle = document.getElementById('yearFilterMiddle');
+      if (yearSelect && yearSelectMiddle) {
+        const years = [2025,2024,2023, 2022, 2021, 2020];
+        yearSelect.innerHTML = '<option value="all">Todos os Anos</option>';
+        yearSelectMiddle.innerHTML = '<option value="all">Todos os Anos</option>';
+        years.forEach(year => {
           const option = document.createElement('option');
-          option.value = q;
-          const legenda = legendForDownloads(parseInt(year), q) || `T${q}`;
-          option.textContent = `T${q} — ${legenda}`;
-          quarterSelectMiddle.appendChild(option);
+          option.value = year;
+          option.textContent = year;
+          if (year === 2025) option.selected = true;
+          yearSelect.appendChild(option);
+          
+          const optionMiddle = document.createElement('option');
+          optionMiddle.value = year;
+          optionMiddle.textContent = year;
+          if (year === 2025) optionMiddle.selected = true;
+          yearSelectMiddle.appendChild(optionMiddle);
         });
       }
 
-      // CORREÇÃO: Se o trimestre atual não estiver disponível, voltar para "Todos"
-      if (year !== 'all' && currentQuarter !== 'all' && !quarters.includes(parseInt(currentQuarter))) {
-        quarterSelectMiddle.value = 'all';
-        selectedQuarter = null;
-        
-        // Sincronizar com o select principal se UC não estiver selecionado
-        if (currentFilter !== 'uc') {
-          document.getElementById('quarterFilter').value = 'all';
-        }
-      }
-    }
-  }
-
-  /* ========================
-     CORREÇÃO: População dinâmica de categorias considerando jurisdição
-  ======================== */
-  function populateDynamicMenus() {
-    const feats = (geojsonData?.features) || [];
-
-    // Estados dinâmicos
-    const estadosSet = new Set();
-    feats.forEach(f => {
-      const estado = f.properties?.estado;
-      if (estado) parseUFs(estado).forEach(code => estadosSet.add(code));
-    });
-
-    // >>> Garantir TO na lista (mesmo sem dados) <<<
-    estadosSet.add('TO');
-
-    const stateSelect = document.getElementById('stateFilter');
-    if (stateSelect) {
-      const currentState = stateSelect.value;
-      stateSelect.innerHTML = '<option value="all">Amazônia Legal</option>';
-      Array.from(estadosSet)
-        .sort((a, b) => ufCodeToName(a).localeCompare(ufCodeToName(b)))
-        .forEach(estado => {
+      // Estado
+      const stateSelect = document.getElementById('stateFilter');
+      if (stateSelect) {
+        const estados = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
+        stateSelect.innerHTML = '<option value="all">Amazônia Legal</option>';
+        estados.forEach(estado => {
           const option = document.createElement('option');
           option.value = estado;
-          option.textContent = ufCodeToName(estado);
-          if (estado === currentState) option.selected = true;
+          option.textContent = estado;
           stateSelect.appendChild(option);
         });
-    }
-
-    // CORREÇÃO: Tipos de Uso dinâmicos considerando filtro atual
-    const usosSet = new Set();
-    feats.forEach(f => {
-      const p = f.properties || {};
-      
-      // Aplica filtros atuais para contexto
-      const jurisdictionOK = currentFilter !== 'uc' || ucSubtype === 'all' || 
-                            (p.modalidade || '').toLowerCase().includes(ucSubtype.toLowerCase());
-      
-      if (jurisdictionOK && p.uso) {
-        usosSet.add(p.uso);
       }
-    });
-    
-    const usoSelect = document.getElementById('usoFilter');
-    if (usoSelect) {
-      const currentUso = usoSelect.value;
-      usoSelect.innerHTML = '<option value="all">Todos</option>';
-      Array.from(usosSet).sort().forEach(uso => {
-        const option = document.createElement('option');
-        option.value = uso;
-        option.textContent = uso;
-        if (uso === currentUso) option.selected = true;
-        usoSelect.appendChild(option);
-      });
-    }
 
-    // CORREÇÃO: Categorias dinâmicas considerando jurisdição
-    const categoriasSet = new Set();
-    feats.forEach(f => {
-      const p = f.properties || {};
-      
-      const jurisdictionOK = currentFilter !== 'uc' || ucSubtype === 'all' || 
-                            (p.modalidade || '').toLowerCase().includes(ucSubtype.toLowerCase());
-      
-      if (jurisdictionOK && p.categoria) {
-        categoriasSet.add(p.categoria);
+      // Categoria
+      const categorySelect = document.getElementById('categoryFilter');
+      if (categorySelect) {
+        const categories = ['Floresta','Cerrado','Caatinga','Mata Atlântica','Pampa','Pantanal'];
+        categorySelect.innerHTML = '<option value="all">Todos</option>';
+        categories.forEach(category => {
+          const option = document.createElement('option');
+          option.value = category;
+          option.textContent = category;
+          categorySelect.appendChild(option);
+        });
       }
-    });
-    
-    const categorySelect = document.getElementById('categoryFilter');
-    if (categorySelect) {
-      const currentCategory = categorySelect.value;
-      categorySelect.innerHTML = '<option value="all">Todos</option>';
-      Array.from(categoriasSet).sort().forEach(categoria => {
-        const option = document.createElement('option');
-        option.value = categoria;
-        option.textContent = mapAcronymLabel(categoria);
-        if (categoria === currentCategory) option.selected = true;
-        categorySelect.appendChild(option);
-      });
+
+      // Tipo de Uso
+      const usoSelect = document.getElementById('usoFilter');
+      if (usoSelect) {
+        usoSelect.innerHTML = '<option value="all">Todos</option>';
+      }
+
+      updateQuarterOptions();
     }
-  }
 
-  /* ========================
-     Boot inicial
-  ======================== */
-  document.addEventListener('DOMContentLoaded', ()=>{
-    initializeMap();
-    setupButtons();
-    populateFilterOptions();
-    loadDashboard();
+    /* ========================
+      CORREÇÃO: Atualização de trimestres com fallback para "Todos"
+    ======================== */
+    function updateQuarterOptions(updateMiddle = false) {
+      const year = updateMiddle ? document.getElementById('yearFilterMiddle').value : document.getElementById('yearFilter').value;
+      
+      // Obter trimestres disponíveis para o ano selecionado
+      const quarters = year !== 'all' ? quartersForDownloads(parseInt(year)) : [1,2,3,4];
+      
+      // Atualizar o select principal
+      const quarterSelect = document.getElementById('quarterFilter');
+      if (quarterSelect) {
+        const currentQuarter = quarterSelect.value;
+        quarterSelect.innerHTML = '<option value="all">Todos os Trimestres</option>';
+        if (year !== 'all') {
+          quarters.forEach(q => {
+            const option = document.createElement('option');
+            option.value = q;
+            const legenda = legendForDownloads(parseInt(year), q) || `T${q}`;
+            option.textContent = `T${q} — ${legenda}`;
+            quarterSelect.appendChild(option);
+          });
+        }
 
-    // Card de downloads do Ameaça e Pressão
-    const downloadCard = document.getElementById('downloads-ap-card');
-    const toggleBtn = document.getElementById('downloads-ap-toggle');
-    const listEl = document.getElementById('ap-downloads-list');
+        // CORREÇÃO: Se o trimestre atual não estiver disponível, voltar para "Todos"
+        if (year !== 'all' && currentQuarter !== 'all' && !quarters.includes(parseInt(currentQuarter))) {
+          quarterSelect.value = 'all';
+          selectedQuarter = null;
+          
+          // Sincronizar com o select do meio se UC estiver selecionado
+          if (currentFilter === 'uc') {
+            document.getElementById('quarterFilterMiddle').value = 'all';
+          }
+        }
+      }
 
-    toggleBtn.addEventListener('click', async () => {
-      const collapsed = downloadCard.classList.toggle('collapsed');
-      toggleBtn.setAttribute('aria-expanded', String(!collapsed));
+      // Atualizar o select do meio (se necessário)
+      const quarterSelectMiddle = document.getElementById('quarterFilterMiddle');
+      if (quarterSelectMiddle) {
+        const currentQuarter = quarterSelectMiddle.value;
+        quarterSelectMiddle.innerHTML = '<option value="all">Todos os Trimestres</option>';
+        if (year !== 'all') {
+          quarters.forEach(q => {
+            const option = document.createElement('option');
+            option.value = q;
+            const legenda = legendForDownloads(parseInt(year), q) || `T${q}`;
+            option.textContent = `T${q} — ${legenda}`;
+            quarterSelectMiddle.appendChild(option);
+          });
+        }
 
-      const needsRender = !collapsed && (
-        !listEl.children.length ||
-        (listEl.children.length === 1 && listEl.querySelector('.muted'))
-      );
-      if (needsRender) {
+        // CORREÇÃO: Se o trimestre atual não estiver disponível, voltar para "Todos"
+        if (year !== 'all' && currentQuarter !== 'all' && !quarters.includes(parseInt(currentQuarter))) {
+          quarterSelectMiddle.value = 'all';
+          selectedQuarter = null;
+          
+          // Sincronizar com o select principal se UC não estiver selecionado
+          if (currentFilter !== 'uc') {
+            document.getElementById('quarterFilter').value = 'all';
+          }
+        }
+      }
+    }
+
+    /* ========================
+      CORREÇÃO: População dinâmica de categorias considerando jurisdição
+    ======================== */
+    function populateDynamicMenus() {
+      const feats = (geojsonData?.features) || [];
+
+      // Estados dinâmicos
+      const estadosSet = new Set();
+      feats.forEach(f => {
+        const estado = f.properties?.estado;
+        if (estado) parseUFs(estado).forEach(code => estadosSet.add(code));
+      });
+
+      // >>> Garantir TO na lista (mesmo sem dados) <<<
+      estadosSet.add('TO');
+
+      const stateSelect = document.getElementById('stateFilter');
+      if (stateSelect) {
+        const currentState = stateSelect.value;
+        stateSelect.innerHTML = '<option value="all">Amazônia Legal</option>';
+        Array.from(estadosSet)
+          .sort((a, b) => ufCodeToName(a).localeCompare(ufCodeToName(b)))
+          .forEach(estado => {
+            const option = document.createElement('option');
+            option.value = estado;
+            option.textContent = ufCodeToName(estado);
+            if (estado === currentState) option.selected = true;
+            stateSelect.appendChild(option);
+          });
+      }
+
+      // CORREÇÃO: Tipos de Uso dinâmicos considerando filtro atual
+      const usosSet = new Set();
+      feats.forEach(f => {
+        const p = f.properties || {};
+        
+        // Aplica filtros atuais para contexto
+        const jurisdictionOK = currentFilter !== 'uc' || ucSubtype === 'all' || 
+                              (p.modalidade || '').toLowerCase().includes(ucSubtype.toLowerCase());
+        
+        if (jurisdictionOK && p.uso) {
+          usosSet.add(p.uso);
+        }
+      });
+      
+      const usoSelect = document.getElementById('usoFilter');
+      if (usoSelect) {
+        const currentUso = usoSelect.value;
+        usoSelect.innerHTML = '<option value="all">Todos</option>';
+        Array.from(usosSet).sort().forEach(uso => {
+          const option = document.createElement('option');
+          option.value = uso;
+          option.textContent = uso;
+          if (uso === currentUso) option.selected = true;
+          usoSelect.appendChild(option);
+        });
+      }
+
+      // CORREÇÃO: Categorias dinâmicas considerando jurisdição
+      const categoriasSet = new Set();
+      feats.forEach(f => {
+        const p = f.properties || {};
+        
+        const jurisdictionOK = currentFilter !== 'uc' || ucSubtype === 'all' || 
+                              (p.modalidade || '').toLowerCase().includes(ucSubtype.toLowerCase());
+        
+        if (jurisdictionOK && p.categoria) {
+          categoriasSet.add(p.categoria);
+        }
+      });
+      
+      const categorySelect = document.getElementById('categoryFilter');
+      if (categorySelect) {
+        const currentCategory = categorySelect.value;
+        categorySelect.innerHTML = '<option value="all">Todos</option>';
+        Array.from(categoriasSet).sort().forEach(categoria => {
+          const option = document.createElement('option');
+          option.value = categoria;
+          option.textContent = mapAcronymLabel(categoria);
+          if (categoria === currentCategory) option.selected = true;
+          categorySelect.appendChild(option);
+        });
+      }
+    }
+
+    /* ========================
+      Boot inicial
+    ======================== */
+    document.addEventListener('DOMContentLoaded', ()=>{
+      initializeMap();
+      setupButtons();
+      populateFilterOptions();
+      loadDashboard();
+
+      // Card de downloads do Ameaça e Pressão
+      const downloadCard = document.getElementById('downloads-ap-card');
+      const toggleBtn = document.getElementById('downloads-ap-toggle');
+      const listEl = document.getElementById('ap-downloads-list');
+
+      toggleBtn.addEventListener('click', async () => {
+        const collapsed = downloadCard.classList.toggle('collapsed');
+        toggleBtn.setAttribute('aria-expanded', String(!collapsed));
+
+        const needsRender = !collapsed && (
+          !listEl.children.length ||
+          (listEl.children.length === 1 && listEl.querySelector('.muted'))
+        );
+        if (needsRender) {
+          await renderDownloadsAP();
+        }
+      });
+
+      // Seletor de tipo (GeoJSON/CSV/SHP)
+      document.querySelector('#downloads-ap-card #ap-typebar').addEventListener('click', async (e) => {
+        const btn = e.target.closest('.typebtn');
+        if (!btn) return;
+        document.querySelectorAll('#downloads-ap-card #ap-typebar .typebtn').forEach(b => {
+          b.classList.toggle('active', b === btn);
+          b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
+        });
+        AP_SELECTED_TYPE = btn.dataset.type;
         await renderDownloadsAP();
-      }
-    });
-
-    // Seletor de tipo (GeoJSON/CSV/SHP)
-    document.querySelector('#downloads-ap-card #ap-typebar').addEventListener('click', async (e) => {
-      const btn = e.target.closest('.typebtn');
-      if (!btn) return;
-      document.querySelectorAll('#downloads-ap-card #ap-typebar .typebtn').forEach(b => {
-        b.classList.toggle('active', b === btn);
-        b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
       });
-      AP_SELECTED_TYPE = btn.dataset.type;
-      await renderDownloadsAP();
     });
-  });
-  </script>
-</body>
-</html>
+    </script>
+  </body>
+  </html>
