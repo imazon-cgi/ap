@@ -51,6 +51,11 @@
 
       #map{height:460px;width:100%;border-radius:var(--border-radius);box-shadow:inset 0 0 10px rgba(0,0,0,.1)}
       .chart-container{position:relative;height:460px;width:100%}
+      /* Mapa com fundo branco e letras cinzas */
+      #map{background:#fff}
+      .leaflet-container{background:#fff!important}
+      .leaflet-control, .leaflet-control a, .leaflet-control-attribution{color:#6b7280!important}
+      .ap-hover-card{color:#6b7280;background:#fff;border:1px solid #e5e7eb;box-shadow:0 4px 12px rgba(0,0,0,.08)}
 
       .stat-card{background:var(--primary-color);color:#fff;border-radius:10px;padding:15px;margin-bottom:15px;box-shadow:0 4px 8px rgba(0,0,0,.1)}
       .stat-label{font-size:.9rem;opacity:.9}.stat-value{font-size:1.8rem;font-weight:700;margin:5px 0}
@@ -389,7 +394,19 @@
                 <i class="fas fa-map-marked-alt me-2"></i>
                 <span id="map-card-title">Mapa das Áreas Protegidas mais Pressionadas</span>
               </div>
-              
+              <div class="card-actions" aria-label="Ações do Mapa">
+                <div class="btn-group" role="group" aria-label="Exportar (Mapa)">
+                  <button id="btn-map-png" class="actionbtn" title="Baixar PNG do mapa">
+                    <i class="fa-regular fa-image" aria-hidden="true"></i> PNG
+                  </button>
+                  <button id="btn-map-csv" class="actionbtn" title="CSV dos dados no mapa">
+                    <i class="fa-solid fa-file-csv" aria-hidden="true"></i> CSV
+                  </button>
+                  <button id="btn-map-toggle" class="actionbtn" title="Ocultar botões">
+                    <i class="fa-solid fa-eye-slash" aria-hidden="true"></i> Ocultar
+                  </button>
+                </div>
+              </div>
             </div>
             <div class="card-body"><div id="map"></div></div>
           </div>
@@ -494,6 +511,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.min.js"></script>
     <script src="https://cdn.datatables.net/buttons/3.0.1/js/buttons.html5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
     <script>
     // ========================
@@ -856,6 +874,21 @@
       const url = canvas.toDataURL('image/png');
       const a = document.createElement('a');
       a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      return url;
+    }
+
+    // Exporta o mapa como PNG com fundo branco e sem base (html2canvas)
+    async function downloadPNGFromMap(mapId='map', filename='mapa.png'){
+      const el = document.getElementById(mapId);
+      if (!el) { alert('Mapa não encontrado.'); return; }
+      const ctrls = el.querySelectorAll('.leaflet-control-container');
+      ctrls.forEach(c => c.style.visibility = 'hidden');
+      try{
+        const canvas = await html2canvas(el, { backgroundColor:'#ffffff', scale:2, useCORS:true });
+        const url = canvas.toDataURL('image/png');
+        const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      }catch(e){ console.error(e); alert('Falha ao gerar PNG do mapa.'); }
+      finally{ ctrls.forEach(c => c.style.visibility = ''); }
     }
 
     function csvEscape(val){
@@ -1203,10 +1236,7 @@
         map.getPane('amzBase').style.pointerEvents = 'none';
       }
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-        subdomains: 'abcd', maxZoom: 20, crossOrigin: true
-      }).addTo(map);
+      // Sem camada base: fundo branco conforme padrão visual
 
       const BASE_GEOJSON_URL = '/dataset/AMZ_legal_amz_legal.geojson';
       const amazoniaBounds = L.latLngBounds([[-18,-75],[6,-44]]);
@@ -2303,7 +2333,10 @@ function updateStatistics(){
       // Inicia com os botões (PNG/CSV) ocultos
       attachToggle('btn-rank-toggle', true);
 
-      // (Mapa) sem botão de ocultar
+      // Export (Mapa): PNG e CSV + toggle dos botões
+      document.getElementById('btn-map-png')?.addEventListener('click', ()=> downloadPNGFromMap('map', `${fileContextBase()}_mapa.png`));
+      document.getElementById('btn-map-csv')?.addEventListener('click', ()=> downloadCSV(`${fileContextBase()}_mapa.csv`, csvFromFeatures(filteredData)));
+      attachToggle('btn-map-toggle', true);
     });
     </script>
   </body>
