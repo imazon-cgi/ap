@@ -906,7 +906,7 @@
 
     function setToggleButtonState(btn, hidden){
       if (!btn) return;
-      btn.classList.toggle('toggle-active', hidden);
+      btn.classList.toggle('toggle-active', !hidden);
       const icon = btn.querySelector('i');
       if (hidden){
         if (icon){ icon.classList.remove('fa-eye-slash'); icon.classList.add('fa-eye'); }
