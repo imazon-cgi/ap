@@ -29,6 +29,11 @@
         border-bottom:2px solid var(--accent-color)!important;padding:.9rem 1.1rem;min-height:56px;
         display:flex;align-items:center;justify-content:space-between;gap:.75rem
       }
+      .card-actions{display:flex;gap:6px}
+      .actionbtn{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid #cfd4da;background:#fff;color:#374151;border-radius:6px;font-weight:600;font-size:.9rem}
+      .actionbtn i{font-size:14px;opacity:.9}
+      .actionbtn:hover{background:#f8fafb;border-color:#94a3b8;color:#111}
+      .actionbtn.toggle-active{background:#6c757d;color:#fff;border-color:#6c757d}
       .card-title-wrap{display:flex;align-items:center;gap:.5rem;min-width:0}
       .card-title-wrap span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
@@ -204,6 +209,7 @@
           grid-template-columns: repeat(2, 1fr);
         }
       }
+
     </style>
   </head>
   <body>
@@ -354,6 +360,22 @@
                 <i class="fas fa-chart-bar me-2"></i>
                 <span id="rank-card-title">Ranking das 10 Áreas Protegidas mais Pressionadas</span>
               </div>
+              <div class="card-actions" aria-label="Ações do Ranking">
+                <div class="btn-group" role="group" aria-label="Exportar (Ranking)">
+                  <button id="btn-rank-png" class="actionbtn" title="Baixar PNG do gráfico">
+                    <i class="fa-regular fa-image" aria-hidden="true"></i> PNG
+                  </button>
+                  <button id="btn-rank-csv-page" class="actionbtn" title="CSV dos itens visíveis (Top 10)">
+                    <i class="fa-solid fa-file-csv" aria-hidden="true"></i> CSV (página)
+                  </button>
+                  <button id="btn-rank-csv-all" class="actionbtn" title="CSV de todos os filtrados">
+                    <i class="fa-solid fa-file-csv" aria-hidden="true"></i> CSV (todos)
+                  </button>
+                  <button id="btn-rank-toggle" class="actionbtn" title="Ocultar gráfico">
+                    <i class="fa-solid fa-eye-slash" aria-hidden="true"></i> Ocultar
+                  </button>
+                </div>
+              </div>
             </div>
             <div class="card-body">
               <div class="chart-container"><canvas id="barChart"></canvas></div>
@@ -367,12 +389,13 @@
                 <i class="fas fa-map-marked-alt me-2"></i>
                 <span id="map-card-title">Mapa das Áreas Protegidas mais Pressionadas</span>
               </div>
+              
             </div>
             <div class="card-body"><div id="map"></div></div>
           </div>
         </div>
       </div>
-
+      
       <!-- Donuts 2x2 -->
       <div id="donuts-block">
         <div id="donuts-row-1" class="row mb-4">
@@ -424,6 +447,8 @@
           </div>
         </div>
       </div>
+
+      
 
       <!-- Downloads — Ameaça e Pressão (novo padrão SAD) -->
       <div class="card mt-3 downloads-card collapsed" id="downloads-ap-card" aria-live="polite">
@@ -822,6 +847,95 @@
       if (!fc.features.length) { alert('Não há dados para exportar.'); return; }
       const name = _contextFilename(fileContextBase(), mode, 'geojson');
       _saveBlob(JSON.stringify(fc), 'application/geo+json;charset=utf-8', name);
+    }
+
+    // ===== Export helpers (PNG/CSV) =====
+    function downloadPNGFromCanvas(canvasId, filename='grafico.png'){
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) { alert('Canvas não encontrado.'); return; }
+      const url = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+
+    function csvEscape(val){
+      const s = String(val ?? '');
+      if (/[";\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+      return s;
+    }
+    function rowsToCSV(rows){
+      const sep = ';';
+      const bom = '\uFEFF';
+      const lines = rows.map(r => r.map(csvEscape).join(sep)).join('\n');
+      return bom + lines;
+    }
+    function downloadCSV(filename, rows){
+      if (!rows || !rows.length){ alert('Não há dados para exportar.'); return; }
+      const csv = rowsToCSV(rows);
+      _saveBlob(csv, 'text/csv;charset=utf-8', filename);
+    }
+    function featureToRow(p){
+      const ano = p?.ano ?? '';
+      const tri = periodLabel(p || {});
+      const classe = (p?.class === 'ameaca' || p?.class === 'pressao') ? p.class : currentClass;
+      return [
+        p?.nome ?? '-',
+        formatEstadoFull(p?.estado),
+        Number(p?.celulas||0),
+        ano,
+        tri,
+        classe,
+        mapAcronymLabel(p?.modalidade || '-'),
+        mapAcronymLabel(p?.categoria || '-'),
+        p?.uso || '-'
+      ];
+    }
+    function csvHeader(){
+      return ['Nome','Estado','Células','Ano','Período','Classe','Modalidade','Categoria','Uso'];
+    }
+    function csvFromBarItems(){
+      const rows = [csvHeader()];
+      (barItems||[]).forEach(r=>{ rows.push(featureToRow(r?._f?.properties || {})); });
+      return rows;
+    }
+    function csvFromFeatures(features){
+      const rows = [csvHeader()];
+      (features||[]).forEach(f=>{ rows.push(featureToRow(f?.properties || {})); });
+      return rows;
+    }
+
+    function setToggleButtonState(btn, hidden){
+      if (!btn) return;
+      btn.classList.toggle('toggle-active', hidden);
+      const icon = btn.querySelector('i');
+      if (hidden){
+        if (icon){ icon.classList.remove('fa-eye-slash'); icon.classList.add('fa-eye'); }
+        btn.lastChild && btn.lastChild.nodeType === Node.TEXT_NODE
+          ? btn.lastChild.textContent = ' Mostrar'
+          : (btn.innerHTML = '<i class="fa-solid fa-eye" aria-hidden="true"></i> Mostrar');
+        btn.title = 'Mostrar';
+      } else {
+        if (icon){ icon.classList.remove('fa-eye'); icon.classList.add('fa-eye-slash'); }
+        btn.lastChild && btn.lastChild.nodeType === Node.TEXT_NODE
+          ? btn.lastChild.textContent = ' Ocultar'
+          : (btn.innerHTML = '<i class="fa-solid fa-eye-slash" aria-hidden="true"></i> Ocultar');
+        btn.title = 'Ocultar';
+      }
+    }
+    function attachToggle(btnId, defaultHidden=false){
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+      const group = btn.closest('.btn-group') || btn.parentElement;
+      if (!group) return;
+      const targets = Array.from(group.querySelectorAll('button')).filter(b => b !== btn);
+      // Estado inicial: esconder/mostrar conforme defaultHidden
+      targets.forEach(b => b.style.display = defaultHidden ? 'none' : '');
+      setToggleButtonState(btn, defaultHidden);
+      btn.addEventListener('click', ()=>{
+        const willHide = targets.some(b => b.style.display !== 'none');
+        targets.forEach(b => b.style.display = willHide ? 'none' : '');
+        setToggleButtonState(btn, willHide);
+      });
     }
 
     /* ========================
@@ -2181,6 +2295,15 @@ function updateStatistics(){
         AP_SELECTED_TYPE = btn.dataset.type;
         await renderDownloadsAP();
       });
+
+      // Botões de ações (padrão SIMEX/SAD)
+      document.getElementById('btn-rank-png')?.addEventListener('click', ()=> downloadPNGFromCanvas('barChart', `${fileContextBase()}_ranking.png`));
+      document.getElementById('btn-rank-csv-page')?.addEventListener('click', ()=> downloadCSV(`${fileContextBase()}_ranking_top10.csv`, csvFromBarItems()));
+      document.getElementById('btn-rank-csv-all')?.addEventListener('click', ()=> downloadCSV(`${fileContextBase()}_ranking_todos.csv`, csvFromFeatures(filteredData)));
+      // Inicia com os botões (PNG/CSV) ocultos
+      attachToggle('btn-rank-toggle', true);
+
+      // (Mapa) sem botão de ocultar
     });
     </script>
   </body>
