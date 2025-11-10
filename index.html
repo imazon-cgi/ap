@@ -1236,7 +1236,11 @@
         map.getPane('amzBase').style.pointerEvents = 'none';
       }
 
-      // Sem camada base: fundo branco conforme padrão visual
+      // Camada base clara (Positron) para manter o mapa visível com letras cinzas
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+        subdomains: 'abcd', maxZoom: 20, crossOrigin: true
+      }).addTo(map);
 
       const BASE_GEOJSON_URL = '/dataset/AMZ_legal_amz_legal.geojson';
       const amazoniaBounds = L.latLngBounds([[-18,-75],[6,-44]]);
