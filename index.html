@@ -2330,7 +2330,6 @@ function updateStatistics(){
         await renderDownloadsAP();
       });
 
-      // Botões de ações (padrão SIMEX/SAD)
       document.getElementById('btn-rank-png')?.addEventListener('click', ()=> downloadPNGFromCanvas('barChart', `${fileContextBase()}_ranking.png`));
       document.getElementById('btn-rank-csv-page')?.addEventListener('click', ()=> downloadCSV(`${fileContextBase()}_ranking_top10.csv`, csvFromBarItems()));
       document.getElementById('btn-rank-csv-all')?.addEventListener('click', ()=> downloadCSV(`${fileContextBase()}_ranking_todos.csv`, csvFromFeatures(filteredData)));

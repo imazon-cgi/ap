@@ -125,9 +125,6 @@ app.use(express.static(ROOT_DIR, {
 // Healthcheck simples
 app.get('/healthz', (_req, res) => res.status(200).send('ok'));
 
-// ---- Fallback SPA sem usar '*' (evita path-to-regexp) ----
-// Intercepta apenas GET sem extensão (ex.: /, /ap, /mapa), e devolve index.html.
-// Não registra padrão de rota (usa app.use sem path).
 app.use((req, res, next) => {
   try {
     if (req.method !== 'GET') return next();
