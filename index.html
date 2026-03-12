@@ -824,7 +824,7 @@
       Valores numéricos
     ======================== */
     function cellValue(p = {}) {
-      const v = p.celulas ?? p.CELULAS ?? p["Celulas"] ?? p["Células"] ?? 0;
+      const v = p.celulas ?? p.CELULAS ?? p["Celulas"] ?? p["celulas"] ?? 0;
       const n = Number(v);
       return Number.isFinite(n) ? n : 0;
     }
