@@ -1621,7 +1621,7 @@
         setTitles();
 
         // CORREÇÃO: Aplicar filtro de jurisdição no carregamento dos dados
-        const basePath = '/dataset/ap/geojson/';
+        const basePath = 'https://imazongeo3-web.s3.amazonaws.com/dashboard/ap/geojson/';
         const scope = currentFilter;
         const years = (selectedYear == null)
           ? [2020,2021,2022,2023,2024,2025]

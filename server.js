@@ -68,7 +68,9 @@ app.use(
           "https://cdn.datatables.net",
           "https://cdnjs.cloudflare.com",
           "https://cdn.jsdelivr.net",
-          "https://unpkg.com"
+          "https://unpkg.com",
+          "https://imazongeo3-web.s3.amazonaws.com",
+          "https://imazongeo3-web.s3.sa-east-1.amazonaws.com"
         ],
 
         // Para libs que usam Web Workers (ex.: html2canvas, leaflet-image, etc.)
