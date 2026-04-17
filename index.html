@@ -1037,10 +1037,10 @@
       // Limpa o loading
       ul.innerHTML = '';
 
-      const curYear = new Date().getFullYear();
+      const curYear = Math.min(new Date().getFullYear(), 2025);
       const years = [];
-      
-      // Gera lista de anos de 2020 até o atual
+
+      // Gera lista de anos de 2020 até o atual (máximo 2025)
       for (let y = curYear; y >= 2020; y--) {
         years.push(y);
       }
