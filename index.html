@@ -514,24 +514,6 @@
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
     <script>
-    // ========================
-    // CONFIG – Bases de download na AWS
-    // ========================
-    const AP_DOWNLOAD_BASE = "https://imazongeo3-web.s3.sa-east-1.amazonaws.com";
-    const AP_PREFIX = "/ameaca_e_pressao";
-    function getApBase() {
-      const base = (window.__AP_DOWNLOAD_BASE || AP_DOWNLOAD_BASE || "").replace(/\/+$/,"");
-      const pref = (window.__AP_PREFIX || AP_PREFIX || "").replace(/\/+$/,"");
-      return { base, pref: pref ? (pref.startsWith("/") ? pref : `/${pref}`) : "" };
-    }
-    function apTypeBase(type) {
-      const { base, pref } = getApBase();
-      const t = (type === "csv") ? "csv" : (type === "shp" ? "shapefile" : "geojson");
-      return `${base}${pref}/${t}`;
-    }
-    function apUrlFromBase(fileBase, type = AP_SELECTED_TYPE) {
-      return `${apTypeBase(type)}/${fileBase}.${type === "shp" ? "zip" : type}`;
-    }
 
     /* ========================
       Utilidades gerais
@@ -733,43 +715,26 @@
       3: 'julho a setembro', 4: 'outubro a dezembro'
     };
 
-    // --- Fallbacks de trimestre/legenda quando geojsonData ainda não estiver disponível ---
+    /* Trimestres e legendas de um ano: o banco manda (via /api/ap/periodo);
+       sem banco, valem os dados já carregados e, por último, as regras dos
+       arquivos publicados no S3. */
     function quartersForDownloads(year){
-      // Se temos dados, usa os trimestres reais
-      if (geojsonData && geojsonData.features && geojsonData.features.length > 0) {
-        const feats = geojsonData.features;
-        const set = new Set();
-        for (const f of feats){
-          const p = f.properties || {};
-          const yOK = (year == null) ? true : String(getYear(p)) === String(year);
-          const q   = getQuarter(p);
-          if (yOK && q) set.add(q);
-        }
-        const quarters = Array.from(set).sort((a,b)=>a-b);
-        if (quarters.length > 0) return quarters;
+      const doBanco = anoNoPeriodo(year);
+      if (doBanco) return doBanco.trimestres.slice();
+
+      const feats = (geojsonData?.features) || [];
+      const set = new Set();
+      for (const f of feats){
+        const p = f.properties || {};
+        const yOK = (year == null) ? true : String(getYear(p)) === String(year);
+        const q   = getQuarter(p);
+        if (yOK && q) set.add(q);
       }
-      
-      // Fallback: regras especiais por ano
-      if (Number(year) === 2020) return [1];
-      if (Number(year) === 2021) return [1, 2];
-      if (Number(year) === 2022) return [1, 2, 3, 4];
-      if (Number(year) === 2023) return [1, 2, 3, 4];
-      if (Number(year) === 2024) return [1, 2, 3, 4];
-      if (Number(year) === 2025) return [1, 2, 3, 4];
-      return [1,2,3,4]; // fallback genérico para outros anos
+      if (set.size) return Array.from(set).sort((a,b)=>a-b);
+      return trimestresDe(year);
     }
     function legendForDownloads(year, q){
-      // Se temos dados, tenta encontrar a legenda real
-      if (geojsonData && geojsonData.features && geojsonData.features.length > 0) {
-        const leg = findLegendaFor(year, q);
-        if (leg) return leg;
-      }
-      
-      // Legendas especiais para anos específicos
-      if (Number(year) === 2020 && Number(q) === 1) return 'agosto/2019 a julho/2020';
-      if (Number(year) === 2021 && Number(q) === 1) return 'fevereiro a abril';
-      if (Number(year) === 2021 && Number(q) === 2) return 'agosto a outubro';
-      return DEFAULT_LEGENDS[q] || `T${q}`;
+      return findLegendaFor(year, q) || DEFAULT_LEGENDS[q] || `T${q}`;
     }
 
     function periodLabel(p = {}) {
@@ -780,28 +745,13 @@
       if (q)        return `T${q}`;
       return leg || '-';
     }
-    function availableQuarters(year){
-      // Regras especiais por ano
-      if (Number(year) === 2020) return [1];
-      if (Number(year) === 2021) return [1, 2];
-      
-      const feats = (geojsonData?.features) || [];
-      const set = new Set();
-      for (const f of feats){
-        const p = f.properties || {};
-        const yOK = (year == null) ? true : String(getYear(p)) === String(year);
-        const q   = getQuarter(p);
-        if (yOK && q) set.add(q);
-      }
-      return Array.from(set).sort((a,b)=>a-b);
-    }
     function findLegendaFor(year, quarter){
       if (quarter == null) return null;
-      // Legendas especiais para anos específicos
-      if (Number(year) === 2020 && Number(quarter) === 1) return 'agosto/2019 a julho/2020';
-      if (Number(year) === 2021 && Number(quarter) === 1) return 'fevereiro a abril';
-      if (Number(year) === 2021 && Number(quarter) === 2) return 'agosto a outubro';
-      
+
+      const doBanco = legendaDe(year, quarter);
+      if (doBanco) return fixLegendDisplay(doBanco);
+
+      // Sem banco: a legenda mais frequente entre as feições do ano/trimestre
       const feats = (geojsonData?.features) || [];
       const hits = feats.filter(f=>{
         const p = f.properties || {};
@@ -972,14 +922,14 @@
     }
 
     /* ========================
-      Downloads - Ameaça e Pressão (padrão SAD) → AWS - CORRIGIDO
+      Downloads - Ameaça e Pressão (como no SAD): o servidor gera o trimestre
+      a partir do banco (server.js, /api/ap/download)
     ======================== */
 
-  // Função corrigida para gerar URLs no formato correto
+  // CSV direto; GeoJSON e Shapefile em ZIP
   function apQuarterlyUrl(year, quarter, type = AP_SELECTED_TYPE) {
-    // Formato: ameaca_e_pressao_1_trimestre_2020
-    const baseName = `ameaca_e_pressao_${quarter}_trimestre_${year}`;
-    return apUrlFromBase(baseName, type);
+    const ext = type === 'csv' ? 'csv' : 'zip';
+    return `${_API_AP}/download/${year}/${quarter}.${ext}${type === 'geojson' ? '?formato=geojson' : ''}`;
   }
 
   // Função para construir blocos de ano - CORRIGIDA
@@ -999,7 +949,7 @@
 
     // Títulos corrigidos por tipo
     const titleMap = {
-      'geojson': 'GeoJSON trimestral',
+      'geojson': 'GeoJSON trimestral (ZIP)',
       'csv': 'CSV trimestral', 
       'shp': 'Shapefile trimestral (ZIP)'
     };
@@ -1037,13 +987,8 @@
       // Limpa o loading
       ul.innerHTML = '';
 
-      const curYear = Math.min(new Date().getFullYear(), 2025);
-      const years = [];
-
-      // Gera lista de anos de 2020 até o atual (máximo 2025)
-      for (let y = curYear; y >= 2020; y--) {
-        years.push(y);
-      }
+      // Anos publicados (banco quando disponível), do mais novo ao mais antigo
+      const years = anosDisponiveis().slice().reverse();
 
       // Renderiza cada ano
       for (let y of years) {
@@ -1144,14 +1089,10 @@
     /* ========================
       UI (anos/títulos/menus)
     ======================== */
-    function filename(scope, cls, year, ucSub=''){
-      if(scope===null){ return `ameaca_e_pressao_${year}_geral_${cls}.geojson`; }
-      if(scope==='ti'){  return `ameaca_e_pressao_${year}_categ_ti_${cls}.geojson`; }
-      if(scope==='uc'){
-        if(ucSub==='uce') return `ameaca_e_pressao_${year}_categ_uce_${cls}.geojson`;
-        if(ucSub==='ucf') return `ameaca_e_pressao_${year}_categ_ucf_${cls}.geojson`;
-      }
-      return null;
+    // Nome do arquivo publicado no S3 de um recorte ('geral', 'categ_ti',
+    // 'categ_uce' ou 'categ_ucf') — o mesmo recorte usado no banco
+    function filename(recorte, cls, year){
+      return `ameaca_e_pressao_${year}_${recorte}_${cls}.geojson`;
     }
     const dashboardTitle = (scope, cls, ucSub, ano, triNum) => {
       const classe = cls === 'ameaca' ? 'Ameaça' : (cls === 'pressao' ? 'Pressão' : 'Geral');
@@ -1237,12 +1178,13 @@
       }
 
       // Camada base clara (Positron) para manter o mapa visível com letras cinzas
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=cb1_4awi_1_7d7bd486fd79a1eb352a8439', {
         attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
         subdomains: 'abcd', maxZoom: 20, crossOrigin: true
       }).addTo(map);
 
-      const BASE_GEOJSON_URL = '/dataset/AMZ_legal_amz_legal.geojson';
+      // Contorno da Amazônia Legal: limite territorial, não sai do banco
+      const BASE_GEOJSON_URL = 'https://imazongeo3-web.s3.sa-east-1.amazonaws.com/dashboard/sad/geojson/AMZ_legal_amz_legal.geojson';
       const amazoniaBounds = L.latLngBounds([[-18,-75],[6,-44]]);
       let baseLayer = null;
 
@@ -1520,13 +1462,15 @@
     /* ========================
       Fetch/merge
     ======================== */
-    async function safeFetch(url){
+    async function safeFetch(url, silencioso=false){
       try{
         const res = await fetch(url);
         if(!res.ok) throw new Error(`HTTP ${res.status}`);
         return await res.json();
       }catch(e){
-        console.warn('Erro ao carregar', url, e.message);
+        // silencioso: resposta do banco (503) quando ele não tem o que foi
+        // pedido — a leitura do S3 logo em seguida é o caminho normal
+        if(!silencioso) console.warn('Erro ao carregar', url, e.message);
         return null;
       }
     }
@@ -1537,78 +1481,78 @@
     }
 
     /* ========================
-      CORREÇÃO: Targets para UC com jurisdição
+      Fontes dos rankings
+      Banco (server.js, /api/ap) quando o ano estiver carregado; se o banco não
+      estiver configurado ou ativo, os GeoJSON publicados no S3.
     ======================== */
-    function targetsFor(scope, cls, year, ucSub){
-      const t = [];
-      const addUC = (c, sub) => { 
-        // CORREÇÃO: Só adiciona se o subtipo corresponder ou for 'all'
-        if (ucSub === 'all' || sub === ucSub) {
-          t.push(filename('uc', c, year, sub)); 
-        }
-      };
-      
-      const addTI = (c) => { t.push(filename('ti', c, year)); };
+    const _API_AP = window.location.pathname.startsWith('/ap') ? '/ap/api/ap' : '/api/ap';
+    const _S3_AP  = 'https://imazongeo3-web.s3.amazonaws.com/dashboard/ap/geojson/';
 
-      if(scope === null){
-        if(cls === 'Todos'){ 
-          t.push(filename(null,'ameaca',year)); 
-          t.push(filename(null,'pressao',year)); 
-        } else { 
-          t.push(filename(null,cls,year)); 
-        }
-        return t;
+    // Cache em memória: o mesmo ranking é pedido de novo a cada troca de filtro
+    const __rankingCache = {};
+    function loadJsonCached(url, silencioso=false){
+      if (__rankingCache[url]) return __rankingCache[url];
+      const p = safeFetch(url, silencioso).then(gj => { if (gj === null) delete __rankingCache[url]; return gj; });
+      __rankingCache[url] = p;
+      return p;
+    }
+    async function loadRanking(recorte, classe, ano){
+      const doBanco = await loadJsonCached(`${_API_AP}/${recorte}/${classe}.geojson?ano=${ano}`, true);
+      if (doBanco) return doBanco;
+      return loadJsonCached(_S3_AP + filename(recorte, classe, ano));
+    }
+
+    /* Anos, trimestres e legendas do banco; sem banco, o alcance dos arquivos
+       publicados no S3. */
+    const ANOS_S3 = [2020,2021,2022,2023,2024,2025];
+    const TRIMESTRES_S3 = { 2020:[1], 2021:[1,2] }; // demais anos: 1 a 4
+    const LEGENDAS_S3 = {
+      2020: { 1:'agosto/2019 a julho/2020' },
+      2021: { 1:'fevereiro a abril', 2:'agosto a outubro' }
+    };
+    let periodoAP = null; // {ano_min, ano_max, trimestre_max, anos:[{ano,trimestres,legendas}]}
+
+    async function carregarPeriodoAP(){
+      const p = await safeFetch(`${_API_AP}/periodo`, true);
+      if (p && Array.isArray(p.anos) && p.anos.length) periodoAP = p;
+    }
+    function anoNoPeriodo(ano){
+      return (periodoAP?.anos || []).find(a => Number(a.ano) === Number(ano)) || null;
+    }
+    function anosDisponiveis(){
+      if (periodoAP) return periodoAP.anos.map(a => Number(a.ano)).sort((a,b)=>a-b);
+      return ANOS_S3.slice();
+    }
+    function trimestresDe(ano){
+      const doBanco = anoNoPeriodo(ano);
+      if (doBanco) return doBanco.trimestres.slice();
+      return (TRIMESTRES_S3[Number(ano)] || [1,2,3,4]).slice();
+    }
+    function legendaDe(ano, q){
+      const doBanco = anoNoPeriodo(ano);
+      if (doBanco) return doBanco.legendas?.[q] || null;
+      return LEGENDAS_S3[Number(ano)]?.[Number(q)] || null;
+    }
+
+    /* ========================
+      Recortes/classes pedidos pelo filtro atual (UC respeita a jurisdição)
+    ======================== */
+    function targetsFor(scope, cls, ucSub){
+      const classes = (cls === 'Todos') ? ['ameaca','pressao'] : [cls];
+      const recortes = [];
+
+      if (scope === null)      recortes.push('geral');
+      else if (scope === 'ti') recortes.push('categ_ti');
+      else if (scope === 'uc' || scope === 'allap'){
+        if (scope === 'allap') recortes.push('categ_ti');
+        // Só o subtipo escolhido (ou os dois, quando 'all')
+        if (ucSub === 'all' || ucSub === 'uce') recortes.push('categ_uce');
+        if (ucSub === 'all' || ucSub === 'ucf') recortes.push('categ_ucf');
       }
-      
-      if(scope === 'ti'){
-        if(cls === 'Todos'){ 
-          addTI('ameaca'); 
-          addTI('pressao'); 
-        } else { 
-          addTI(cls); 
-        }
-        return t;
-      }
-      
-      if(scope === 'uc'){
-        if(cls === 'Todos'){
-          // CORREÇÃO: Considera jurisdição específica
-          if (ucSub === 'all' || ucSub === 'uce') {
-            addUC('ameaca','uce'); 
-            addUC('pressao','uce');
-          }
-          if (ucSub === 'all' || ucSub === 'ucf') {
-            addUC('ameaca','ucf'); 
-            addUC('pressao','ucf');
-          }
-        } else {
-          if (ucSub === 'all' || ucSub === 'uce') addUC(cls,'uce'); 
-          if (ucSub === 'all' || ucSub === 'ucf') addUC(cls,'ucf');
-        }
-        return t;
-      }
-      
-      if(scope === 'allap'){
-        if(cls === 'Todos'){
-          addTI('ameaca'); 
-          addTI('pressao');
-          if (ucSub === 'all' || ucSub === 'uce') {
-            addUC('ameaca','uce'); 
-            addUC('pressao','uce');
-          }
-          if (ucSub === 'all' || ucSub === 'ucf') {
-            addUC('ameaca','ucf'); 
-            addUC('pressao','ucf');
-          }
-        } else {
-          addTI(cls);
-          if (ucSub === 'all' || ucSub === 'uce') addUC(cls,'uce'); 
-          if (ucSub === 'all' || ucSub === 'ucf') addUC(cls,'ucf');
-        }
-        return t;
-      }
-      
-      return t;
+
+      const alvos = [];
+      recortes.forEach(r => classes.forEach(c => alvos.push({ recorte:r, classe:c })));
+      return alvos;
     }
 
     /* ========================
@@ -1620,16 +1564,18 @@
       try {
         setTitles();
 
-        // CORREÇÃO: Aplicar filtro de jurisdição no carregamento dos dados
-        const basePath = 'https://imazongeo3-web.s3.amazonaws.com/dashboard/ap/geojson/';
+        // Anos carregados: o atual e o anterior (para a variação) ou todos
         const scope = currentFilter;
+        const anos = anosDisponiveis();
         const years = (selectedYear == null)
-          ? [2020,2021,2022,2023,2024,2025]
-          : [selectedYear, selectedYear - 1].filter(y => y >= 2020 && y <= 2025);
+          ? anos
+          : [selectedYear, selectedYear - 1].filter(y => anos.includes(y));
 
-        // CORREÇÃO: Garantir que o filtro de jurisdição seja aplicado no targetsFor
-        const allTargets = years.flatMap(y => targetsFor(scope, currentClass, y, ucSubtype)).filter(Boolean);
-        const results = await Promise.all(allTargets.map(f => safeFetch(basePath + f)));
+        // O filtro de jurisdição já entra na escolha dos recortes
+        const alvos = targetsFor(scope, currentClass, ucSubtype);
+        const results = await Promise.all(
+          years.flatMap(y => alvos.map(a => loadRanking(a.recorte, a.classe, y)))
+        );
         geojsonData = mergeCollections(results.filter(Boolean));
 
         // Menus dinâmicos + trimestre
@@ -2089,20 +2035,21 @@ function updateStatistics(){
       const yearSelect = document.getElementById('yearFilter');
       const yearSelectMiddle = document.getElementById('yearFilterMiddle');
       if (yearSelect && yearSelectMiddle) {
-        const years = [2025,2024,2023, 2022, 2021, 2020];
+        // Anos publicados (banco quando disponível), do mais novo ao mais antigo
+        const years = anosDisponiveis().slice().reverse();
         yearSelect.innerHTML = '<option value="all">Todos os Anos</option>';
         yearSelectMiddle.innerHTML = '<option value="all">Todos os Anos</option>';
         years.forEach(year => {
           const option = document.createElement('option');
           option.value = year;
           option.textContent = year;
-          if (year === 2025) option.selected = true;
+          if (year === selectedYear) option.selected = true;
           yearSelect.appendChild(option);
           
           const optionMiddle = document.createElement('option');
           optionMiddle.value = year;
           optionMiddle.textContent = year;
-          if (year === 2025) optionMiddle.selected = true;
+          if (year === selectedYear) optionMiddle.selected = true;
           yearSelectMiddle.appendChild(optionMiddle);
         });
       }
@@ -2294,9 +2241,13 @@ function updateStatistics(){
     /* ========================
       Boot inicial
     ======================== */
-    document.addEventListener('DOMContentLoaded', ()=>{
+    document.addEventListener('DOMContentLoaded', async ()=>{
       initializeMap();
       setupButtons();
+      // Anos/trimestres do banco antes de montar os filtros; sem banco, seguem
+      // os anos dos arquivos do S3
+      await carregarPeriodoAP();
+      if (periodoAP?.ano_max) selectedYear = Number(periodoAP.ano_max);
       populateFilterOptions();
       loadDashboard();
 

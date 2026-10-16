@@ -1,0 +1,6 @@
+# Configuração local (DATABASE_URL)
+.env
+
+# Logs do PM2
+logs/
+*/logs/
